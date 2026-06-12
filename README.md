@@ -74,8 +74,16 @@ Training examples are built **per annotated segment** (title/author spans are se
 ## RoBERTa sliding-window pipeline
 
 ```bash
-# Window + BIO labels (from data/extracted/)
+# Single worker
 python prepare_data.py roberta-process --processed-dir data/roberta_full
+
+# Multi-worker (recommended for ~3.8k docs)
+NUM_WORKERS=6 bash scripts/start_roberta_process_multiworker.sh
+# after all workers finish:
+python prepare_data.py merge-roberta-shards --processed-dir data/roberta_full --num-workers 6
+
+# Or run merge + balance + split + HF push in one waiter:
+NUM_WORKERS=6 bash scripts/wait_roberta_merge_balance_push.sh
 
 # Balance O-only windows + oversample author windows
 python prepare_data.py balance-windows --processed-dir data/roberta_full

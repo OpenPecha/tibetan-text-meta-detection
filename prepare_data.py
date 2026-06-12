@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from config import (
@@ -267,6 +268,122 @@ def _resolve_examples_path(processed_dir: Path, examples_file: Path | None) -> P
     )
 
 
+def _roberta_worker_shard_path(processed_dir: Path, worker_id: int) -> Path:
+    return processed_dir / f"roberta_all_examples.worker{worker_id}.jsonl"
+
+
+def _roberta_worker_summary_path(processed_dir: Path, worker_id: int) -> Path:
+    return processed_dir / f"roberta_process_summary.worker{worker_id}.json"
+
+
+def _acquire_roberta_process_lock(
+    processed_dir: Path,
+    worker_id: int | None,
+    num_workers: int,
+) -> Path:
+    """Prevent two processes from using the same worker slot."""
+    if num_workers > 1:
+        if worker_id is None:
+            raise ValueError("--worker-id is required when --num-workers > 1")
+        if worker_id < 0 or worker_id >= num_workers:
+            raise ValueError(
+                f"--worker-id must be between 0 and {num_workers - 1}, got {worker_id}"
+            )
+        lock_path = processed_dir / f".roberta_process.lock.worker{worker_id}"
+    else:
+        lock_path = processed_dir / ".roberta_process.lock"
+
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    if lock_path.exists():
+        raise RuntimeError(f"Another roberta-process holds {lock_path}")
+    lock_path.write_text(str(os.getpid()), encoding="utf-8")
+    return lock_path
+
+
+def _process_roberta_document(
+    entry: dict,
+    extracted_dir: Path,
+    tokenizer,
+    stats_acc: WindowStatsAccumulator,
+    out_f,
+    *,
+    window_size: int,
+    stride: int,
+    max_begin: int,
+    max_end: int,
+    write_per_window_files: bool,
+    windows_dir: Path | None,
+) -> tuple[int, int]:
+    """Process one document; returns (skipped_empty, roundtrip_failures)."""
+    skipped_empty = 0
+    roundtrip_failures = 0
+    doc_id = entry["doc_id"]
+    ann_path = extracted_dir / entry["annotations_path"]
+    with ann_path.open(encoding="utf-8") as f:
+        payload = json.load(f)
+
+    segments = payload.get("segments", [])
+    if not segments and payload.get("annotations"):
+        raise ValueError(
+            f"Legacy export format in {ann_path}. Re-run extract_data.py."
+        )
+
+    for segment in segments:
+        text = segment["text"]
+        if not text.strip():
+            skipped_empty += 1
+            continue
+
+        annotations = segment.get("annotations", [])
+        metadata = {
+            "doc_id": doc_id,
+            "filename": entry["filename"],
+            "segment_id": segment["segment_id"],
+            "segment_index": segment["segment_index"],
+            "segment_label": segment.get("segment_label"),
+        }
+
+        examples = slide_segment(
+            tokenizer,
+            text,
+            annotations,
+            metadata=metadata,
+            window_size=window_size,
+            stride=stride,
+            max_begin=max_begin,
+            max_end=max_end,
+        )
+        if not examples:
+            skipped_empty += 1
+            continue
+
+        failures, _ = validate_segment_roundtrip(
+            tokenizer,
+            text,
+            annotations,
+            window_size=window_size,
+            stride=stride,
+            max_begin=max_begin,
+            max_end=max_end,
+        )
+        roundtrip_failures += failures
+
+        for example in examples:
+            stats_acc.add(example)
+            out_f.write(json.dumps(example, ensure_ascii=False) + "\n")
+            if write_per_window_files and windows_dir is not None:
+                window_file = (
+                    windows_dir
+                    / f"{doc_id}_{segment['segment_id']}_{example['window_name']}.json"
+                )
+                window_file.write_text(
+                    json.dumps(example, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
+    return skipped_empty, roundtrip_failures
+
+
 def run_roberta_process(
     extracted_dir: Path,
     processed_dir: Path,
@@ -277,20 +394,73 @@ def run_roberta_process(
     max_end: int = ROBERTA_MAX_END_SLIDES,
     num_docs: int | None = None,
     write_per_window_files: bool = False,
+    worker_id: int | None = None,
+    num_workers: int = 1,
 ) -> dict:
     """RoBERTa subword sliding-window BIO examples for HuggingFace training."""
+    if num_workers < 1:
+        raise ValueError("num_workers must be >= 1")
+    if num_workers > 1 and worker_id is None:
+        raise ValueError("--worker-id is required when --num-workers > 1")
+
     from transformers import AutoTokenizer
 
-    print(f"Loading tokenizer: {model_name}")
+    lock_path = _acquire_roberta_process_lock(processed_dir, worker_id, num_workers)
+    try:
+        return _run_roberta_process_inner(
+            extracted_dir=extracted_dir,
+            processed_dir=processed_dir,
+            model_name=model_name,
+            window_size=window_size,
+            stride=stride,
+            max_begin=max_begin,
+            max_end=max_end,
+            num_docs=num_docs,
+            write_per_window_files=write_per_window_files,
+            worker_id=worker_id,
+            num_workers=num_workers,
+        )
+    finally:
+        lock_path.unlink(missing_ok=True)
+
+
+def _run_roberta_process_inner(
+    extracted_dir: Path,
+    processed_dir: Path,
+    model_name: str,
+    window_size: int,
+    stride: int,
+    max_begin: int,
+    max_end: int,
+    num_docs: int | None,
+    write_per_window_files: bool,
+    worker_id: int | None,
+    num_workers: int,
+) -> dict:
+    from transformers import AutoTokenizer
+
+    worker_label = (
+        f"worker {worker_id}/{num_workers}" if num_workers > 1 else "single worker"
+    )
+    print(f"Loading tokenizer: {model_name} ({worker_label})")
     tokenizer = AutoTokenizer.from_pretrained(model_name, add_prefix_space=True)
 
     entries = _load_index(extracted_dir)
     if num_docs is not None:
         entries = entries[:num_docs]
+    if num_workers > 1:
+        entries = [
+            entry
+            for idx, entry in enumerate(entries)
+            if idx % num_workers == worker_id
+        ]
+        print(f"  assigned {len(entries)} documents")
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     if write_per_window_files:
         windows_dir = processed_dir / "roberta_windows"
+        if num_workers > 1:
+            windows_dir = processed_dir / f"roberta_windows.worker{worker_id}"
         windows_dir.mkdir(parents=True, exist_ok=True)
     else:
         windows_dir = None
@@ -298,78 +468,35 @@ def run_roberta_process(
     stats_acc = WindowStatsAccumulator()
     skipped_empty = 0
     roundtrip_failures = 0
-    all_records_path = processed_dir / "roberta_all_examples.jsonl"
+    if num_workers > 1:
+        all_records_path = _roberta_worker_shard_path(processed_dir, worker_id)
+        summary_path = _roberta_worker_summary_path(processed_dir, worker_id)
+    else:
+        all_records_path = processed_dir / "roberta_all_examples.jsonl"
+        summary_path = processed_dir / "roberta_process_summary.json"
 
     with all_records_path.open("w", encoding="utf-8") as out_f:
         for doc_idx, entry in enumerate(entries, start=1):
-            doc_id = entry["doc_id"]
-            ann_path = extracted_dir / entry["annotations_path"]
-            with ann_path.open(encoding="utf-8") as f:
-                payload = json.load(f)
-
-            segments = payload.get("segments", [])
-            if not segments and payload.get("annotations"):
-                raise ValueError(
-                    f"Legacy export format in {ann_path}. Re-run extract_data.py."
-                )
-
-            for segment in segments:
-                text = segment["text"]
-                if not text.strip():
-                    skipped_empty += 1
-                    continue
-
-                annotations = segment.get("annotations", [])
-                metadata = {
-                    "doc_id": doc_id,
-                    "filename": entry["filename"],
-                    "segment_id": segment["segment_id"],
-                    "segment_index": segment["segment_index"],
-                    "segment_label": segment.get("segment_label"),
-                }
-
-                examples = slide_segment(
-                    tokenizer,
-                    text,
-                    annotations,
-                    metadata=metadata,
-                    window_size=window_size,
-                    stride=stride,
-                    max_begin=max_begin,
-                    max_end=max_end,
-                )
-                if not examples:
-                    skipped_empty += 1
-                    continue
-
-                failures, _ = validate_segment_roundtrip(
-                    tokenizer,
-                    text,
-                    annotations,
-                    window_size=window_size,
-                    stride=stride,
-                    max_begin=max_begin,
-                    max_end=max_end,
-                )
-                roundtrip_failures += failures
-
-                for example in examples:
-                    stats_acc.add(example)
-                    out_f.write(json.dumps(example, ensure_ascii=False) + "\n")
-                    if write_per_window_files and windows_dir is not None:
-                        window_file = (
-                            windows_dir
-                            / f"{doc_id}_{segment['segment_id']}_{example['window_name']}.json"
-                        )
-                        window_file.write_text(
-                            json.dumps(example, ensure_ascii=False, indent=2),
-                            encoding="utf-8",
-                        )
+            doc_skipped, doc_failures = _process_roberta_document(
+                entry,
+                extracted_dir,
+                tokenizer,
+                stats_acc,
+                out_f,
+                window_size=window_size,
+                stride=stride,
+                max_begin=max_begin,
+                max_end=max_end,
+                write_per_window_files=write_per_window_files,
+                windows_dir=windows_dir,
+            )
+            skipped_empty += doc_skipped
+            roundtrip_failures += doc_failures
 
             if doc_idx % 50 == 0 or doc_idx == len(entries):
                 print(
                     f"  [{doc_idx}/{len(entries)}] docs, "
-                    f"{stats_acc.total_examples} examples"
+                    f"{stats_acc.total_examples} examples ({worker_label})"
                 )
 
     stats = stats_acc.to_dict()
@@ -384,18 +511,99 @@ def run_roberta_process(
         "skipped_empty_segments": skipped_empty,
         "roundtrip_failures": roundtrip_failures,
         "write_per_window_files": write_per_window_files,
+        "worker_id": worker_id,
+        "num_workers": num_workers,
         "bio_labels": BIO_LABELS,
         "all_examples_path": str(all_records_path),
         **stats,
     }
-    write_json_report(processed_dir / "roberta_process_summary.json", summary)
+    write_json_report(summary_path, summary)
 
-    print(f"Processed {len(entries)} documents -> {stats_acc.total_examples} RoBERTa examples")
-    print(f"  Combined: {all_records_path}")
+    print(
+        f"Processed {len(entries)} documents -> {stats_acc.total_examples} "
+        f"RoBERTa examples ({worker_label})"
+    )
+    print(f"  Output: {all_records_path}")
     if write_per_window_files:
         print(f"  Per-window files: {windows_dir}")
     print(f"  Tier stats: {stats.get('tier_window_stats', {})}")
     print(f"  Roundtrip failures: {roundtrip_failures}")
+    if num_workers > 1:
+        print(
+            f"Worker {worker_id} finished. "
+            "Run merge-roberta-shards after all workers complete."
+        )
+    return summary
+
+
+def run_merge_roberta_shards(
+    processed_dir: Path,
+    num_workers: int | None = None,
+    keep_shards: bool = False,
+) -> dict:
+    """Concatenate worker JSONL shards into roberta_all_examples.jsonl."""
+    shard_paths = sorted(processed_dir.glob("roberta_all_examples.worker*.jsonl"))
+    if not shard_paths:
+        raise FileNotFoundError(
+            f"No worker shards under {processed_dir}. "
+            "Run roberta-process with --num-workers > 1 first."
+        )
+    if num_workers is not None and len(shard_paths) != num_workers:
+        raise RuntimeError(
+            f"Expected {num_workers} shards, found {len(shard_paths)}: "
+            f"{[p.name for p in shard_paths]}"
+        )
+
+    out_path = processed_dir / "roberta_all_examples.jsonl"
+    total_examples = 0
+    total_documents = 0
+    skipped_empty = 0
+    roundtrip_failures = 0
+    merged_tier_counts: dict[str, int] = {}
+    merged_tier_window_stats: dict[str, dict] = {}
+
+    with out_path.open("w", encoding="utf-8") as out_f:
+        for shard in shard_paths:
+            with shard.open(encoding="utf-8") as in_f:
+                for line in in_f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    out_f.write(line + "\n")
+                    total_examples += 1
+
+            worker_suffix = shard.name.replace("roberta_all_examples.", "").replace(
+                ".jsonl", ""
+            )
+            summary_path = processed_dir / f"roberta_process_summary.{worker_suffix}.json"
+            if summary_path.is_file():
+                worker_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                total_documents += worker_summary.get("documents", 0)
+                skipped_empty += worker_summary.get("skipped_empty_segments", 0)
+                roundtrip_failures += worker_summary.get("roundtrip_failures", 0)
+                for tier, count in worker_summary.get("tier_example_counts", {}).items():
+                    merged_tier_counts[tier] = merged_tier_counts.get(tier, 0) + count
+
+    summary = {
+        "documents": total_documents,
+        "training_examples": total_examples,
+        "skipped_empty_segments": skipped_empty,
+        "roundtrip_failures": roundtrip_failures,
+        "num_shards": len(shard_paths),
+        "shard_files": [str(p) for p in shard_paths],
+        "all_examples_path": str(out_path),
+        "tier_example_counts": merged_tier_counts,
+        "tier_window_stats": merged_tier_window_stats,
+    }
+    write_json_report(processed_dir / "roberta_process_summary.json", summary)
+
+    if not keep_shards:
+        for shard in shard_paths:
+            shard.unlink()
+
+    print(f"Merged {len(shard_paths)} shards -> {out_path}")
+    print(f"  {total_documents} documents, {total_examples} examples")
+    print(f"  Roundtrip failures (sum): {roundtrip_failures}")
     return summary
 
 
@@ -555,6 +763,7 @@ def main() -> None:
             "window-report",
             "process",
             "roberta-process",
+            "merge-roberta-shards",
             "balance-windows",
             "split",
             "all",
@@ -655,6 +864,23 @@ def main() -> None:
         help="Limit processing to first N documents from index.jsonl",
     )
     parser.add_argument(
+        "--worker-id",
+        type=int,
+        default=None,
+        help="Worker index for parallel roberta-process (0 .. num-workers-1)",
+    )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=1,
+        help="Parallel roberta-process workers (default: 1)",
+    )
+    parser.add_argument(
+        "--keep-shards",
+        action="store_true",
+        help="Keep worker JSONL shards after merge-roberta-shards",
+    )
+    parser.add_argument(
         "--write-per-window-files",
         action="store_true",
         help="Also write one JSON file per RoBERTa window (large disk use)",
@@ -731,6 +957,16 @@ def main() -> None:
             max_end=args.max_end_slides,
             num_docs=args.num_docs,
             write_per_window_files=args.write_per_window_files,
+            worker_id=args.worker_id,
+            num_workers=args.num_workers,
+        )
+
+    if args.command == "merge-roberta-shards":
+        print("\n=== Merge RoBERTa worker shards ===")
+        run_merge_roberta_shards(
+            args.processed_dir,
+            num_workers=args.num_workers if args.num_workers > 1 else None,
+            keep_shards=args.keep_shards,
         )
 
     if args.command == "balance-windows":
