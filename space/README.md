@@ -20,4 +20,4 @@ with the same sliding-window inference pipeline as training.
 - **Title** spans are highlighted in gold
 - **Author** spans are highlighted in blue
 
-Model: [ganga4364/tibetan-metadata-roberta-ner](https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner)
+Model: [ganga4364/tibetan-metadata-roberta-ner](https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner) (retrained on balanced fixed-label windows, Jun 2026)

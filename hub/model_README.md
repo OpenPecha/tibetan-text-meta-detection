@@ -33,15 +33,27 @@ Fine-tuned [`spsither/tibetan_RoBERTa_S_e3`](https://huggingface.co/spsither/tib
 - 3 epochs, batch size 64, lr 2e-5
 - Sliding-window examples: 512 tokens, stride 256, 15B+15E overlap-aware
 
-## Test metrics (full test split, 108,954 windows)
+## Test metrics (balanced windows, 30,357 test windows)
 
 | Metric | Value |
 |--------|-------|
-| span F1 | 14.9% |
-| span precision | 11.9% |
-| span recall | 20.0% |
-| title F1 | 16.5% |
-| author F1 | 1.4% |
+| span F1 | 3.1% |
+| span precision | 1.8% |
+| span recall | 13.9% |
+| title F1 | 7.4% |
+| author F1 | 1.0% |
+
+Trained on balanced fixed-label windows (274k examples after O-only cap + author oversample).
+
+## Segment-level test metrics (6,492 segments, merged inference)
+
+| Metric | Value |
+|--------|-------|
+| exact span F1 | 8.0% |
+| exact span precision | 5.4% |
+| exact span recall | 15.3% |
+| exact title F1 | 12.7% |
+| exact author F1 | 0.7% |
 
 ## Inference
 

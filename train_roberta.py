@@ -206,8 +206,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--hf-config",
-        default="windows",
-        help="HF dataset config name (default: windows)",
+        default="default",
+        help="HF dataset config name (default: default; Parquet splits use the default config)",
     )
     parser.add_argument(
         "--no-class-weights",

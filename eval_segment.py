@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import torch
-from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 from config import EXTRACTED_DIR
@@ -114,8 +113,6 @@ def evaluate_segments(
     total_tp = total_fp = total_fn = 0
     title_tp = title_fp = title_fn = 0
     author_tp = author_fp = author_fn = 0
-    all_gold_tags: list[list[str]] = []
-    all_pred_tags: list[list[str]] = []
 
     for seg in segments:
         gold = [
@@ -155,9 +152,6 @@ def evaluate_segments(
         author_fp += lfp
         author_fn += lfn
 
-        all_gold_tags.extend(_gold_span_sequences(gold))
-        all_pred_tags.extend(_pred_span_sequences(pred))
-
     def prf(tp: int, fp: int, fn: int) -> dict[str, float]:
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / (tp + fn) if tp + fn else 0.0
@@ -170,15 +164,6 @@ def evaluate_segments(
         "exact_span_match": {**span_metrics, "tp": total_tp, "fp": total_fp, "fn": total_fn},
         "exact_title": {**prf(title_tp, title_fp, title_fn), "tp": title_tp},
         "exact_author": {**prf(author_tp, author_fp, author_fn), "tp": author_tp},
-        "seqeval_span_f1": float(f1_score(all_gold_tags, all_pred_tags))
-        if all_gold_tags
-        else 0.0,
-        "seqeval_span_precision": float(precision_score(all_gold_tags, all_pred_tags))
-        if all_gold_tags
-        else 0.0,
-        "seqeval_span_recall": float(recall_score(all_gold_tags, all_pred_tags))
-        if all_gold_tags
-        else 0.0,
     }
 
 

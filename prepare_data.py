@@ -680,7 +680,8 @@ def run_balance_windows(
 ) -> dict:
     """Subsample O-only windows and oversample author-bearing windows per segment."""
     import random
-    from collections import defaultdict
+    import sqlite3
+    import tempfile
 
     source = input_file or (processed_dir / "roberta_all_examples.jsonl")
     if not source.is_file():
@@ -689,63 +690,99 @@ def run_balance_windows(
     dest = output_file or (processed_dir / BALANCED_EXAMPLES_FILENAME)
     rng = random.Random(seed)
 
-    by_segment: dict[str, list[dict]] = defaultdict(list)
+    db_path = processed_dir / ".balance_windows.sqlite"
+    if db_path.exists():
+        db_path.unlink()
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "CREATE TABLE examples ("
+        "seg_key TEXT NOT NULL, has_entity INT NOT NULL, has_author INT NOT NULL, line TEXT NOT NULL)"
+    )
+    conn.execute("CREATE INDEX idx_seg ON examples(seg_key)")
+
+    total_in = 0
+    batch: list[tuple[str, int, int, str]] = []
     with source.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
+        for raw_line in f:
+            line = raw_line.strip()
             if not line:
                 continue
             record = json.loads(line)
             seg_key = f"{record.get('doc_id')}:{record.get('segment_id')}"
-            by_segment[seg_key].append(record)
+            has_entity = int(_record_has_entity(record))
+            has_author = int(_record_has_author(record))
+            batch.append((seg_key, has_entity, has_author, line))
+            total_in += 1
+            if len(batch) >= 5000:
+                conn.executemany(
+                    "INSERT INTO examples VALUES (?, ?, ?, ?)", batch
+                )
+                batch.clear()
+    if batch:
+        conn.executemany("INSERT INTO examples VALUES (?, ?, ?, ?)", batch)
+        batch.clear()
+    conn.commit()
 
-    kept: list[dict] = []
-    total_in = 0
+    seg_keys = [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT seg_key FROM examples ORDER BY seg_key"
+        )
+    ]
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    output_count = 0
     total_o_only_dropped = 0
     total_author_dupes = 0
 
-    for seg_key in sorted(by_segment):
-        records = by_segment[seg_key]
-        total_in += len(records)
-        entity_records = [r for r in records if _record_has_entity(r)]
-        o_only_records = [r for r in records if not _record_has_entity(r)]
+    with dest.open("w", encoding="utf-8") as out_f:
+        for seg_key in seg_keys:
+            rows = conn.execute(
+                "SELECT has_entity, has_author, line FROM examples WHERE seg_key = ?",
+                (seg_key,),
+            ).fetchall()
+            entity_rows = [row for row in rows if row[0]]
+            o_only_rows = [row for row in rows if not row[0]]
 
-        cap = max(0, int(round(len(entity_records) * o_only_cap_ratio)))
-        original_o_only = len(o_only_records)
-        if len(o_only_records) > cap:
-            rng.shuffle(o_only_records)
-            o_only_records = o_only_records[:cap]
-            total_o_only_dropped += original_o_only - len(o_only_records)
+            cap = max(0, int(round(len(entity_rows) * o_only_cap_ratio)))
+            original_o_only = len(o_only_rows)
+            if len(o_only_rows) > cap:
+                rng.shuffle(o_only_rows)
+                o_only_rows = o_only_rows[:cap]
+                total_o_only_dropped += original_o_only - len(o_only_rows)
 
-        segment_out: list[dict] = entity_records + o_only_records
-        if author_oversample > 1:
-            for record in entity_records:
-                if _record_has_author(record):
+            for _, has_author, line in entity_rows:
+                out_f.write(line + "\n")
+                output_count += 1
+                if author_oversample > 1 and has_author:
                     for _ in range(author_oversample - 1):
-                        segment_out.append(record)
+                        out_f.write(line + "\n")
+                        output_count += 1
                         total_author_dupes += 1
 
-        kept.extend(segment_out)
+            for _, _, line in o_only_rows:
+                out_f.write(line + "\n")
+                output_count += 1
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    write_jsonl(dest, kept)
+    conn.close()
+    db_path.unlink(missing_ok=True)
 
     report = {
         "input_file": str(source),
         "output_file": str(dest),
         "input_examples": total_in,
-        "output_examples": len(kept),
+        "output_examples": output_count,
         "o_only_dropped": total_o_only_dropped,
         "author_duplicates_added": total_author_dupes,
         "o_only_cap_ratio": o_only_cap_ratio,
         "author_oversample": author_oversample,
-        "segments": len(by_segment),
+        "segments": len(seg_keys),
     }
     write_json_report(processed_dir / "balance_windows_report.json", report)
 
     print(f"Balanced windows written to {dest}")
     print(
-        f"  {total_in} -> {len(kept)} examples "
+        f"  {total_in} -> {output_count} examples "
         f"(dropped {total_o_only_dropped} O-only, +{total_author_dupes} author dupes)"
     )
     return report

@@ -18,20 +18,32 @@ size_categories:
 
 RoBERTa sliding-window training data for Tibetan **title** and **author** span detection from BDRC outliner exports.
 
-## Contents (`windows` config)
+## Contents
 
 Balanced window splits (fixed window-relative BIO labeling, O-only subsampling, author oversampling):
 
-| Split | Description |
-|-------|-------------|
-| `train` | ~89% of documents (stratified) |
-| `validation` | ~1% (small val for fast eval) |
-| `test` | ~10% |
+| Split | Windows | Documents (approx.) |
+|-------|---------|---------------------|
+| `train` | 241,377 | 3,355 |
+| `validation` | 2,688 | 40 |
+| `test` | 30,357 | 375 |
+
+Load with the **`default`** config (Parquet upload):
+
+```python
+from datasets import load_dataset
+
+ds = load_dataset("ganga4364/tibetan-metadata-detector")
+train = ds["train"]
+val = ds["validation"]
+test = ds["test"]
+```
 
 **Balancing applied before split:**
 - O-only windows capped at **2×** entity-bearing windows per segment
 - Author-bearing windows duplicated **2×**
 - Document-level stratified split **89% / 1% / 10%**
+- Raw input: 1,061,770 windows → 274,422 after balance
 
 Raw extracted documents: [ganga4364/tibetan-metadata-extracted](https://huggingface.co/datasets/ganga4364/tibetan-metadata-extracted)
 
@@ -51,28 +63,19 @@ Each row:
 - `window_name`, `window_side`, `slide_index`, `window_annotations`
 - `doc_id`, `segment_id`, `segment_tier`, `has_title`, `has_author`
 
-## Usage
-
-```python
-from datasets import load_dataset
-
-ds = load_dataset("ganga4364/tibetan-metadata-detector", "windows")
-train = ds["train"]
-val = ds["validation"]
-test = ds["test"]
-```
-
 ## Train on a new GPU instance
 
 ```bash
 pip install -r requirements.txt
 python train_roberta.py \
   --hf-dataset ganga4364/tibetan-metadata-detector \
-  --hf-config windows \
+  --hf-config default \
   --batch-size 64 \
   --epochs 3 \
   --entity-weight 10
 ```
+
+See [GPU instance playbook](https://github.com/OpenPecha/tibetan-text-meta-detection/blob/main/docs/GPU_INSTANCE.md) on GitHub.
 
 ## Model & demo
 
