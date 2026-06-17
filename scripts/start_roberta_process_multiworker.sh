@@ -8,10 +8,13 @@ NUM_WORKERS="${NUM_WORKERS:-6}"
 PROCESSED_DIR="${PROCESSED_DIR:-data/roberta_full}"
 EXTRACTED_DIR="${EXTRACTED_DIR:-data/extracted}"
 LOG_DIR="${LOG_DIR:-data/roberta_process_logs}"
+ROBERTA_MODEL="${ROBERTA_MODEL:-spsither/tibetan_RoBERTa_S_e3}"
 
 mkdir -p "$LOG_DIR" "$PROCESSED_DIR"
 
 echo "Starting $NUM_WORKERS roberta-process workers (logs in $LOG_DIR/)"
+echo "  model=$ROBERTA_MODEL"
+echo "  processed-dir=$PROCESSED_DIR"
 
 for ((wid=0; wid<NUM_WORKERS; wid++)); do
   logfile="$LOG_DIR/roberta_worker${wid}.log"
@@ -22,6 +25,7 @@ for ((wid=0; wid<NUM_WORKERS; wid++)); do
   nohup python3 -u prepare_data.py roberta-process \
     --extracted-dir "$EXTRACTED_DIR" \
     --processed-dir "$PROCESSED_DIR" \
+    --model "$ROBERTA_MODEL" \
     --num-workers "$NUM_WORKERS" \
     --worker-id "$wid" \
     >"$logfile" 2>&1 &
