@@ -20,4 +20,4 @@ with the same sliding-window inference pipeline as training.
 - **Title** spans are highlighted in gold
 - **Author** spans are highlighted in blue
 
-Model: [ganga4364/tibetan-metadata-roberta-ner](https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner) (retrained on balanced fixed-label windows, Jun 2026)
+Model: [ganga4364/tibetan-metadata-koichi-ner](https://huggingface.co/ganga4364/tibetan-metadata-koichi-ner) (Koichi tokenizer comparison run, Jun 2026; window span F1 12.3%)

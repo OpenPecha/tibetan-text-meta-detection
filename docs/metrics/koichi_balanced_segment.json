@@ -1,0 +1,30 @@
+{
+  "run_id": "koichi_balanced_fixed_labels",
+  "base_model": "KoichiYasuoka/roberta-base-tibetan",
+  "eval_type": "segment_exact_span_match",
+  "segments_evaluated": 6683,
+  "segment_metrics": {
+    "exact_span_match": {
+      "precision": 0.044511722170790906,
+      "recall": 0.21711008054674152,
+      "f1": 0.07387720354643798,
+      "tp": 1779,
+      "fp": 38188,
+      "fn": 6415
+    },
+    "exact_title": {
+      "precision": 0.09670908785109604,
+      "recall": 0.3579580825897489,
+      "f1": 0.15227754237288135,
+      "tp": 1725
+    },
+    "exact_author": {
+      "precision": 0.0024401265250790782,
+      "recall": 0.016,
+      "f1": 0.0042344638306214466,
+      "tp": 54
+    }
+  },
+  "hf_model": "https://huggingface.co/ganga4364/tibetan-metadata-koichi-ner",
+  "eval_date": "2026-06-17"
+}

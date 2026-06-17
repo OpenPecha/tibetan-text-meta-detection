@@ -27,7 +27,7 @@ from pipeline.roberta_windows import (
     tokenize_segment,
 )
 
-DEFAULT_MODEL_ID = "ganga4364/tibetan-metadata-roberta-ner"
+DEFAULT_MODEL_ID = "ganga4364/tibetan-metadata-koichi-ner"
 
 
 def _build_inference_batch(

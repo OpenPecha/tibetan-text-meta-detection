@@ -134,7 +134,7 @@ hf upload ganga4364/tibetan-metadata-highlight space/ --type space \
 | Window (30,357 test windows) | 3.1% | 7.4% | 1.0% |
 | Segment exact match (6,492 segments) | 8.0% | 12.7% | 0.7% |
 
-Base model: `spsither/tibetan_RoBERTa_S_e3`. See README “Improvement ideas” for next experiments.
+Base model: `spsither/tibetan_RoBERTa_S_e3`. See [docs/EXPERIMENT_REPORT.md](EXPERIMENT_REPORT.md) for full experiment history including Koichi comparison.
 
 ## Monitoring
 

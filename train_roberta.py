@@ -24,11 +24,38 @@ from transformers import (
     TrainingArguments,
 )
 
-from config import PROCESSED_DIR, ROBERTA_MODEL, SPLITS_DIR
-from pipeline.bio import BIO_LABELS, ID_TO_LABEL, LABEL_TO_ID
+from config import PROCESSED_DIR, ROBERTA_MODEL, ROBERTA_WINDOW_SIZE, SPLITS_DIR
+from pipeline.bio import BIO_LABELS, ID_TO_LABEL, IGNORE_LABEL_ID, LABEL_TO_ID
 
 FEATURE_COLUMNS = ["input_ids", "attention_mask", "labels"]
 DEFAULT_ENTITY_WEIGHT = 10.0
+
+
+def ensure_position_capacity(model, min_positions: int) -> None:
+    """Grow RoBERTa position embeddings when max_length windows exceed pretrained size."""
+    roberta = model.roberta
+    current = roberta.config.max_position_embeddings
+    if current >= min_positions:
+        return
+    old_emb = roberta.embeddings.position_embeddings
+    new_emb = nn.Embedding(min_positions, old_emb.embedding_dim)
+    with torch.no_grad():
+        new_emb.weight[:current] = old_emb.weight
+        if min_positions > current:
+            new_emb.weight[current:] = old_emb.weight[-1]
+    roberta.embeddings.position_embeddings = new_emb
+    roberta.embeddings.register_buffer(
+        "position_ids",
+        torch.arange(min_positions).expand((1, -1)),
+        persistent=False,
+    )
+    roberta.embeddings.register_buffer(
+        "token_type_ids",
+        torch.zeros((1, min_positions), dtype=torch.long),
+        persistent=False,
+    )
+    roberta.config.max_position_embeddings = min_positions
+    model.config.max_position_embeddings = min_positions
 
 
 def load_hf_split_datasets(
@@ -151,9 +178,9 @@ class WeightedTrainer(Trainer):
         logits = outputs.logits
         if self.class_weights is not None:
             weight = self.class_weights.to(logits.device)
-            loss_fct = nn.CrossEntropyLoss(weight=weight)
+            loss_fct = nn.CrossEntropyLoss(weight=weight, ignore_index=IGNORE_LABEL_ID)
         else:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(ignore_index=IGNORE_LABEL_ID)
         loss = loss_fct(
             logits.view(-1, model.config.num_labels),
             labels.view(-1),
@@ -233,6 +260,14 @@ def main() -> None:
         id2label=ID_TO_LABEL,
         label2id=LABEL_TO_ID,
     )
+    # RoBERTa position ids run 1..seq_len (padding_idx=1); 512-token windows need index 512.
+    min_positions = ROBERTA_WINDOW_SIZE + 2
+    if model.config.max_position_embeddings < min_positions:
+        print(
+            f"Resizing position embeddings: "
+            f"{model.config.max_position_embeddings} -> {min_positions}"
+        )
+        ensure_position_capacity(model, min_positions)
 
     print("Loading datasets...")
     if args.hf_dataset:

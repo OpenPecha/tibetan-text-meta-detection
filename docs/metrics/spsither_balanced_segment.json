@@ -1,0 +1,20 @@
+{
+  "run_id": "spsither_balanced_fixed_labels",
+  "base_model": "spsither/tibetan_RoBERTa_S_e3",
+  "eval_type": "segment_exact_span_match",
+  "segments_evaluated": 6492,
+  "segment_metrics": {
+    "exact_span_match": {
+      "precision": 0.054,
+      "recall": 0.153,
+      "f1": 0.080
+    },
+    "exact_title": {
+      "f1": 0.127
+    },
+    "exact_author": {
+      "f1": 0.007
+    }
+  },
+  "hf_model": "https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner"
+}

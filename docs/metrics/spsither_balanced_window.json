@@ -1,0 +1,22 @@
+{
+  "run_id": "spsither_balanced_fixed_labels",
+  "base_model": "spsither/tibetan_RoBERTa_S_e3",
+  "tokenizer": "spsither/tibetan_RoBERTa_S_e3",
+  "balanced": true,
+  "labels_fixed": true,
+  "raw_windows": 1061770,
+  "balanced_windows": 274422,
+  "train_windows": 241377,
+  "val_windows": 2688,
+  "test_windows": 30357,
+  "split_ratio": "89/1/10",
+  "window_metrics": {
+    "test_span_f1": 0.031,
+    "test_title_f1": 0.074,
+    "test_author_f1": 0.010,
+    "test_span_precision": 0.018,
+    "test_span_recall": 0.139
+  },
+  "hf_model": "https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner",
+  "hf_dataset": "https://huggingface.co/datasets/ganga4364/tibetan-metadata-detector"
+}

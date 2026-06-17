@@ -1,0 +1,26 @@
+{
+  "run_id": "koichi_balanced_fixed_labels",
+  "base_model": "KoichiYasuoka/roberta-base-tibetan",
+  "tokenizer": "KoichiYasuoka/roberta-base-tibetan",
+  "balanced": true,
+  "labels_fixed": true,
+  "raw_windows": 934690,
+  "balanced_windows": 253605,
+  "o_only_dropped": 732743,
+  "author_duplicates_added": 51658,
+  "train_windows": 222320,
+  "val_windows": 2788,
+  "test_windows": 28497,
+  "split_ratio": "89/1/10",
+  "window_metrics": {
+    "test_loss": 0.12219075858592987,
+    "test_span_f1": 0.12281733790550525,
+    "test_span_precision": 0.07776869265013174,
+    "test_span_recall": 0.2919110626108307,
+    "test_title_f1": 0.15833924311778738,
+    "test_author_f1": 0.09432449903038137,
+    "epoch": 3.0
+  },
+  "hf_model": "https://huggingface.co/ganga4364/tibetan-metadata-koichi-ner",
+  "data_dir": "data/roberta_koichi"
+}

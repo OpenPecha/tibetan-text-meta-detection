@@ -45,10 +45,11 @@ with gr.Blocks(title="Tibetan Metadata Highlight") as demo:
     text_in.submit(fn=detect_metadata, inputs=text_in, outputs=[html_out, json_out])
 
     gr.Markdown(
-        "Model: [ganga4364/tibetan-metadata-roberta-ner]"
-        "(https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner) · "
-        "Dataset: [ganga4364/tibetan-metadata-detector]"
-        "(https://huggingface.co/datasets/ganga4364/tibetan-metadata-detector)"
+        "Model: [ganga4364/tibetan-metadata-koichi-ner]"
+        "(https://huggingface.co/ganga4364/tibetan-metadata-koichi-ner) "
+        "(Koichi tokenizer; window F1 12.3%) · "
+        "Baseline: [ganga4364/tibetan-metadata-roberta-ner]"
+        "(https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner)"
     )
 
 if __name__ == "__main__":

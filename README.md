@@ -9,9 +9,12 @@ Detect **title** and **author** spans in digitized Tibetan text using a RoBERTa 
 | Asset | Link |
 |-------|------|
 | Extracted documents | [ganga4364/tibetan-metadata-extracted](https://huggingface.co/datasets/ganga4364/tibetan-metadata-extracted) |
-| Window splits (balanced) | [ganga4364/tibetan-metadata-detector](https://huggingface.co/datasets/ganga4364/tibetan-metadata-detector) |
-| Fine-tuned model | [ganga4364/tibetan-metadata-roberta-ner](https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner) |
-| Gradio demo | [ganga4364/tibetan-metadata-highlight](https://huggingface.co/spaces/ganga4364/tibetan-metadata-highlight) |
+| Window splits (Spsither tokenizer) | [ganga4364/tibetan-metadata-detector](https://huggingface.co/datasets/ganga4364/tibetan-metadata-detector) |
+| Spsither fine-tuned model | [ganga4364/tibetan-metadata-roberta-ner](https://huggingface.co/ganga4364/tibetan-metadata-roberta-ner) |
+| Koichi fine-tuned model | [ganga4364/tibetan-metadata-koichi-ner](https://huggingface.co/ganga4364/tibetan-metadata-koichi-ner) |
+| Gradio demo (Koichi) | [ganga4364/tibetan-metadata-highlight](https://huggingface.co/spaces/ganga4364/tibetan-metadata-highlight) |
+
+**Full experiment report (all runs, metrics, training args):** [docs/EXPERIMENT_REPORT.md](docs/EXPERIMENT_REPORT.md)
 
 ## Quick start (GPU instance, no database)
 
@@ -140,21 +143,23 @@ print(highlight_spans(your_tibetan_segment_text, spans))
 pytest tests/test_label_window.py -v -m "not slow"
 ```
 
-## Model metrics (latest balanced run)
+## Model metrics (latest runs)
 
-| Eval | Span F1 | Title F1 | Author F1 |
-|------|---------|----------|-----------|
-| Window test | 3.1% | 7.4% | 1.0% |
-| Segment exact match | 8.0% | 12.7% | 0.7% |
+See **[docs/EXPERIMENT_REPORT.md](docs/EXPERIMENT_REPORT.md)** for full history (unbalanced → balanced Spsither → Koichi comparison).
 
-Trained on fixed window-relative BIO labels with class weight 10. Author detection remains the main weakness; see improvement ideas below.
+| Run | Window span F1 | Segment span F1 |
+|-----|----------------|-----------------|
+| Spsither balanced | 3.1% | 8.0% |
+| Koichi balanced | **12.3%** | 7.4% |
+
+Trained on fixed window-relative BIO labels with class weight 10. Author detection remains weak at segment level for both models.
 
 ## Improvement ideas
 
 1. Lower `entity_weight` (5) and looser O-only cap (3–4×) to improve precision.
 2. Train 5–10 epochs; early-stop on segment-level val F1.
 3. Confidence threshold in `merge_predictions` at inference.
-4. Try `KoichiYasuoka/roberta-base-tibetan` (requires re-windowing with new tokenizer).
+4. Try `KoichiYasuoka/roberta-base-tibetan` — **done**; see [docs/EXPERIMENT_REPORT.md](docs/EXPERIMENT_REPORT.md) (Koichi wins window F1; segment title F1 +2.5 pp vs Spsither).
 5. Per-entity loss weights or CRF head for BIO consistency.
 
 ## Scope

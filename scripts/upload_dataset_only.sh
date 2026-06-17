@@ -12,6 +12,7 @@ hf auth login --token "$HF_TOKEN"
 
 _bind_stage() {
   local stage="$1" subpath="$2" source="$3"
+  umount "$stage/$subpath" 2>/dev/null || true
   rm -rf "$stage"
   mkdir -p "$stage/$subpath"
   mount --bind "$source" "$stage/$subpath"

@@ -12,19 +12,31 @@ SPACE_ID="ganga4364/tibetan-metadata-highlight"
 
 hf auth login --token "$HF_TOKEN"
 
+_bind_stage() {
+  local stage="$1" subpath="$2" source="$3"
+  umount "$stage/$subpath" 2>/dev/null || true
+  rm -rf "$stage"
+  mkdir -p "$stage/$subpath"
+  mount --bind "$source" "$stage/$subpath"
+}
+
+_unbind_stage() {
+  local stage="$1" subpath="$2"
+  umount "$stage/$subpath" 2>/dev/null || true
+  rm -rf "$stage"
+}
+
 echo "=== Uploading extracted/ (~11 GB) ==="
 STAGE_EXTRACTED="/tmp/hf_stage_extracted"
-rm -rf "$STAGE_EXTRACTED"
-mkdir -p "$STAGE_EXTRACTED"
-ln -sfn "$(pwd)/data/extracted" "$STAGE_EXTRACTED/extracted"
+_bind_stage "$STAGE_EXTRACTED" extracted "$(pwd)/data/extracted"
 hf upload-large-folder "$DATASET_ID" "$STAGE_EXTRACTED" --type dataset
+_unbind_stage "$STAGE_EXTRACTED" extracted
 
 echo "=== Uploading splits/ (~13 GB) ==="
 STAGE_SPLITS="/tmp/hf_stage_splits"
-rm -rf "$STAGE_SPLITS"
-mkdir -p "$STAGE_SPLITS"
-ln -sfn "$(pwd)/data/roberta_full/splits" "$STAGE_SPLITS/splits"
+_bind_stage "$STAGE_SPLITS" splits "$(pwd)/data/roberta_full/splits"
 hf upload-large-folder "$DATASET_ID" "$STAGE_SPLITS" --type dataset
+_unbind_stage "$STAGE_SPLITS" splits
 
 echo "=== Creating model repo ==="
 hf repos create "$MODEL_ID" --type model --public --exist-ok

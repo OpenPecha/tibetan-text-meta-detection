@@ -1,0 +1,22 @@
+{
+  "run_id": "spsither_unbalanced_buggy_labels",
+  "description": "First Spsither training on full unbalanced window set with window-relative BIO labeling bug (begin/end windows often all-O). Do not use for comparison after label fix.",
+  "base_model": "spsither/tibetan_RoBERTa_S_e3",
+  "tokenizer": "spsither/tibetan_RoBERTa_S_e3",
+  "balanced": false,
+  "labels_fixed": false,
+  "train_windows": 819620,
+  "val_windows": 92907,
+  "test_windows": 108954,
+  "split_ratio": "80/10/10",
+  "window_metrics": {
+    "test_span_f1": 0.149,
+    "test_title_f1": 0.165,
+    "test_author_f1": 0.014,
+    "test_span_precision": 0.12,
+    "test_span_recall": 0.20,
+    "test_loss": 0.0066
+  },
+  "segment_metrics": null,
+  "notes": "High window F1 was inflated by misaligned labels. Segment eval was not run for this configuration."
+}
