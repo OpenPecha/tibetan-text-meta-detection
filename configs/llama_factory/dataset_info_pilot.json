@@ -1,0 +1,34 @@
+{
+  "tibetan_title_sft_pilot": {
+    "file_name": "tibetan_title_sft_pilot/train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_title_sft_pilot_val": {
+    "file_name": "tibetan_title_sft_pilot/val.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_author_sft_pilot": {
+    "file_name": "tibetan_author_sft_pilot/train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_author_sft_pilot_val": {
+    "file_name": "tibetan_author_sft_pilot/val.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}
