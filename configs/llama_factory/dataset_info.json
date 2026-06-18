@@ -1,0 +1,34 @@
+{
+  "tibetan_title_sft": {
+    "file_name": "tibetan_title_sft/train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_title_sft_val": {
+    "file_name": "tibetan_title_sft/val.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_author_sft": {
+    "file_name": "tibetan_author_sft/train.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "tibetan_author_sft_val": {
+    "file_name": "tibetan_author_sft/val.jsonl",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}
