@@ -109,7 +109,15 @@ tmux attach -t llm_sft_train
 
 Configs: `configs/llama_factory/title_lora_sft.yaml`, `author_lora_sft.yaml`.
 
-Optional: push JSONL to `ganga4364/tibetan-metadata-llm-sft` on Hugging Face.
+Optional: push JSONL to Hugging Face:
+
+- **10% pilot:** [ganga4364/tibetan-metadata-llm-sft](https://huggingface.co/datasets/ganga4364/tibetan-metadata-llm-sft)
+- **Full:** [ganga4364/tibetan-metadata-llm-sft-full](https://huggingface.co/datasets/ganga4364/tibetan-metadata-llm-sft-full)
+
+```bash
+bash scripts/push_llm_sft_to_hf.sh pilot   # 10% -> tibetan-metadata-llm-sft
+bash scripts/push_llm_sft_to_hf.sh full    # full -> tibetan-metadata-llm-sft-full
+```
 
 ## Cropping behavior
 

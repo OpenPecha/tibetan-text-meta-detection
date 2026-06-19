@@ -14,6 +14,7 @@ build/
 # Data outputs
 data/
 .extract.lock
+logs/
 
 # IDE
 .idea/
