@@ -7,6 +7,7 @@ Row-level benchmark comparing span extractors on the **10% pilot LLM SFT title t
 | Path | Description |
 |------|-------------|
 | [report/PILOT_TITLE_BENCHMARK_REPORT.md](report/PILOT_TITLE_BENCHMARK_REPORT.md) | **Main report** — corpus, models, metrics, conclusions |
+| [report/METRICS_EXPLAINED.md](report/METRICS_EXPLAINED.md) | **Metrics guide** — IoU, offset tolerances, examples & diagrams |
 | [report/benchmark_pilot_title.json](report/benchmark_pilot_title.json) | Machine-readable leaderboard (standard metrics) |
 | [report/benchmark_offset_diagnostics.json](report/benchmark_offset_diagnostics.json) | Offset-first diagnostics (start/end/both hit rates) |
 | [report/benchmark_pilot_title.md](report/benchmark_pilot_title.md) | Auto-generated standard metrics tables |

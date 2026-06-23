@@ -126,6 +126,8 @@ Aggregated JSON: [benchmark_pilot_title.json](benchmark_pilot_title.json)
 Per-model metrics: `benchmark/logs/benchmark_<kind>_metrics.json`  
 Per-row predictions: `benchmark/logs/benchmark_<kind>_predictions.jsonl`
 
+**Metric definitions with IoU examples and diagrams:** [METRICS_EXPLAINED.md](METRICS_EXPLAINED.md)
+
 ### 4.3 Segment-dedup view
 
 For each unique `(doc_id, segment_id)`, keep the row with the best exact-match TP. Reported in per-model sections of [benchmark_pilot_title.md](benchmark_pilot_title.md).
