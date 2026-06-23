@@ -1,0 +1,116 @@
+{
+  "run_id": "benchmark_koichi_pilot_title",
+  "eval_type": "row_multi_metric",
+  "started_at_utc": "2026-06-22T09:35:53.160826+00:00",
+  "model_kind": "koichi",
+  "test_jsonl": "data/llm_sft_pilot_10pct/title/test.jsonl",
+  "meta_jsonl": "data/llm_sft_pilot_10pct/title/test_meta.jsonl",
+  "checkpoint": "models/koichi-ner",
+  "base_model": null,
+  "adapter": null,
+  "row_metrics": {
+    "rows_evaluated": 769,
+    "rows_in_this_run": 769,
+    "rows_skipped_resume": 0,
+    "parse_failures": 0,
+    "parse_fail_rate": 0.0,
+    "exact_title": {
+      "precision": 0.06639004149377593,
+      "recall": 0.20930232558139536,
+      "f1": 0.1008050402520126,
+      "tp": 144,
+      "fp": 2025,
+      "fn": 544
+    },
+    "overlap_title_iou50": {
+      "precision": 0.2319041032733979,
+      "recall": 0.7311046511627907,
+      "f1": 0.35211760588029406,
+      "tp": 503,
+      "fp": 1666,
+      "fn": 185
+    },
+    "overlap_title_iou80": {
+      "precision": 0.19271553711387737,
+      "recall": 0.6075581395348837,
+      "f1": 0.2926146307315366,
+      "tp": 418,
+      "fp": 1751,
+      "fn": 270
+    },
+    "text_equal_title": {
+      "precision": 0.06639004149377593,
+      "recall": 0.20930232558139536,
+      "f1": 0.1008050402520126,
+      "tp": 144,
+      "fp": 2025,
+      "fn": 544
+    },
+    "offset_relaxed_title_10": {
+      "precision": 0.20239741816505302,
+      "recall": 0.6380813953488372,
+      "f1": 0.3073153657682884,
+      "tp": 439,
+      "fp": 1730,
+      "fn": 249
+    },
+    "offset_relaxed_title_50": {
+      "precision": 0.24804057169202398,
+      "recall": 0.7819767441860465,
+      "f1": 0.37661883094154713,
+      "tp": 538,
+      "fp": 1631,
+      "fn": 150
+    },
+    "segment_dedup": {
+      "segments_evaluated": 720,
+      "exact_title": {
+        "precision": 0.07068709836875926,
+        "recall": 0.2223950233281493,
+        "f1": 0.1072768192048012,
+        "tp": 143,
+        "fp": 1880,
+        "fn": 500
+      },
+      "overlap_title_iou50": {
+        "precision": 0.2328225407810183,
+        "recall": 0.7325038880248833,
+        "f1": 0.35333833458364594,
+        "tp": 471,
+        "fp": 1552,
+        "fn": 172
+      },
+      "text_equal_title": {
+        "precision": 0.07068709836875926,
+        "recall": 0.2223950233281493,
+        "f1": 0.1072768192048012,
+        "tp": 143,
+        "fp": 1880,
+        "fn": 500
+      },
+      "offset_relaxed_title_10": {
+        "precision": 0.20464656450815621,
+        "recall": 0.6438569206842923,
+        "f1": 0.31057764441110275,
+        "tp": 414,
+        "fp": 1609,
+        "fn": 229
+      },
+      "offset_relaxed_title_50": {
+        "precision": 0.2491349480968858,
+        "recall": 0.7838258164852255,
+        "f1": 0.37809452363090773,
+        "tp": 504,
+        "fp": 1519,
+        "fn": 139
+      }
+    },
+    "timing": {
+      "load_ms": 575.78,
+      "total_inference_s": 106.26,
+      "mean_ms_per_row": 138.18,
+      "median_ms_per_row": 167.61
+    }
+  },
+  "predictions_path": "/root/tibetan-text-meta-detection/logs/benchmark_koichi_predictions.jsonl"
+}

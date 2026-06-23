@@ -245,6 +245,7 @@ def evaluate_rows(
     base_model: str | None,
     adapter: str | None,
     load_in_4bit: bool,
+    max_new_tokens: int,
 ) -> dict[str, Any]:
     done = load_completed_row_ids(predictions_path) if resume else set()
     predictions_path.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +308,7 @@ def evaluate_rows(
                     row["instruction"],
                     input_text,
                     family=gen_spec.family,
+                    max_new_tokens=max_new_tokens,
                 )
                 parse_ok = gen_meta["parse_ok"]
                 raw_response = gen_meta.get("raw_response")
@@ -367,6 +369,7 @@ def evaluate_rows(
             if inference_times_ms
             else 0.0,
         },
+        "max_new_tokens": max_new_tokens,
     }
 
 
@@ -419,7 +422,19 @@ def main() -> None:
         default=[10, 50],
     )
     parser.add_argument("--no-4bit", action="store_true")
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=None,
+        help="Generative decode limit (default: llm_sft.model_backends.DEFAULT_MAX_NEW_TOKENS)",
+    )
     args = parser.parse_args()
+
+    max_new_tokens = args.max_new_tokens
+    if max_new_tokens is None:
+        from llm_sft.model_backends import DEFAULT_MAX_NEW_TOKENS
+
+        max_new_tokens = DEFAULT_MAX_NEW_TOKENS
 
     predictions = args.predictions or Path(f"logs/benchmark_{args.model_kind}_predictions.jsonl")
     metrics_out = args.metrics_out or Path(f"logs/benchmark_{args.model_kind}_metrics.json")
@@ -444,6 +459,7 @@ def main() -> None:
         base_model=args.base_model,
         adapter=args.adapter,
         load_in_4bit=not args.no_4bit,
+        max_new_tokens=max_new_tokens,
     )
 
     result = {
@@ -451,6 +467,7 @@ def main() -> None:
         "eval_type": "row_multi_metric",
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "model_kind": args.model_kind,
+        "max_new_tokens": max_new_tokens,
         "test_jsonl": str(args.test_jsonl),
         "meta_jsonl": str(args.meta_jsonl),
         "checkpoint": args.checkpoint if args.model_kind in ROBERTA_KINDS else None,

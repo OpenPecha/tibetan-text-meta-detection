@@ -35,7 +35,13 @@ Title-only micro-F1 over all test rows (from `eval_common.span_eval_metrics`):
 - **Exact** — `(label, span_start, span_end)` must match
 - **Overlap IoU50** — same label, character IoU ≥ 0.5
 - **Text equal** — extracted title string matches
-- **Offset ±10 / ±50** — start/end within tolerance and spans overlap
+- **Offset ±10 / ±50** — start **and** end within tolerance **and** spans overlap (char IoU > 0)
+
+Recompute richer offset diagnostics (start-only, end-only, both, MAE) from saved predictions without re-inference:
+
+```bash
+python3 scripts/recompute_benchmark_offset_metrics.py --metrics-dir logs
+```
 
 Secondary: **segment-dedup** summary (best row per `(doc_id, segment_id)` by exact match) in the comparison report.
 

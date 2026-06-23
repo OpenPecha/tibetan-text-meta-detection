@@ -78,3 +78,26 @@ def test_compare_title_spans_with_text():
     assert cmp["text_match"] is False
     assert cmp["char_iou"] > 0.5
     assert cmp["start_delta"] == 1
+
+
+def test_offset_start_end_only():
+    gold = [{"label": "title", "span_start": 10, "span_end": 20}]
+    pred = [{"label": "title", "span_start": 12, "span_end": 30}]
+    from eval_common import offset_end_relaxed_span_match, offset_start_relaxed_span_match
+
+    assert offset_start_relaxed_span_match(gold, pred, start_tol=5) == (1, 0, 0)
+    assert offset_end_relaxed_span_match(gold, pred, end_tol=5) == (0, 1, 1)
+    assert offset_end_relaxed_span_match(gold, pred, end_tol=15) == (1, 0, 0)
+
+
+def test_row_offset_diagnostics():
+    gold = [{"label": "title", "span_start": 10, "span_end": 20}]
+    pred = [{"label": "title", "span_start": 15, "span_end": 25}]
+    from eval_common import row_offset_diagnostics
+
+    d = row_offset_diagnostics(gold, pred, tolerances=(10, 50))
+    assert d["start_abs_err"] == 5
+    assert d["end_abs_err"] == 5
+    assert d["start_within_10"] is True
+    assert d["both_within_10"] is True
+    assert d["both_within_10_overlap"] is True

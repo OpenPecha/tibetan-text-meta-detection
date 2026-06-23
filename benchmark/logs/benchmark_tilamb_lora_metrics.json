@@ -1,0 +1,116 @@
+{
+  "run_id": "benchmark_tilamb_lora_pilot_title",
+  "eval_type": "row_multi_metric",
+  "started_at_utc": "2026-06-23T03:58:25.083071+00:00",
+  "model_kind": "tilamb_lora",
+  "test_jsonl": "data/llm_sft_pilot_10pct/title/test.jsonl",
+  "meta_jsonl": "data/llm_sft_pilot_10pct/title/test_meta.jsonl",
+  "checkpoint": null,
+  "base_model": "YoLo2000/TiLamb-7B",
+  "adapter": "/root/lora/tibetan-title-pilot",
+  "row_metrics": {
+    "rows_evaluated": 769,
+    "rows_in_this_run": 123,
+    "rows_skipped_resume": 646,
+    "parse_failures": 0,
+    "parse_fail_rate": 0.0,
+    "exact_title": {
+      "precision": 0.017687074829931974,
+      "recall": 0.0188953488372093,
+      "f1": 0.018271257905832748,
+      "tp": 13,
+      "fp": 722,
+      "fn": 675
+    },
+    "overlap_title_iou50": {
+      "precision": 0.5700680272108843,
+      "recall": 0.6090116279069767,
+      "f1": 0.5888966971187631,
+      "tp": 419,
+      "fp": 316,
+      "fn": 269
+    },
+    "overlap_title_iou80": {
+      "precision": 0.3619047619047619,
+      "recall": 0.3866279069767442,
+      "f1": 0.37385804638088543,
+      "tp": 266,
+      "fp": 469,
+      "fn": 422
+    },
+    "text_equal_title": {
+      "precision": 0.02040816326530612,
+      "recall": 0.02180232558139535,
+      "f1": 0.02108222066057625,
+      "tp": 15,
+      "fp": 720,
+      "fn": 673
+    },
+    "offset_relaxed_title_10": {
+      "precision": 0.39591836734693875,
+      "recall": 0.42296511627906974,
+      "f1": 0.40899508081517916,
+      "tp": 291,
+      "fp": 444,
+      "fn": 397
+    },
+    "offset_relaxed_title_50": {
+      "precision": 0.6095238095238096,
+      "recall": 0.6511627906976745,
+      "f1": 0.629655657062544,
+      "tp": 448,
+      "fp": 287,
+      "fn": 240
+    },
+    "segment_dedup": {
+      "segments_evaluated": 720,
+      "exact_title": {
+        "precision": 0.018922852983988356,
+        "recall": 0.020249221183800622,
+        "f1": 0.019563581640331076,
+        "tp": 13,
+        "fp": 674,
+        "fn": 629
+      },
+      "overlap_title_iou50": {
+        "precision": 0.5735080058224163,
+        "recall": 0.6137071651090342,
+        "f1": 0.5929270127915727,
+        "tp": 394,
+        "fp": 293,
+        "fn": 248
+      },
+      "text_equal_title": {
+        "precision": 0.021834061135371178,
+        "recall": 0.02336448598130841,
+        "f1": 0.022573363431151242,
+        "tp": 15,
+        "fp": 672,
+        "fn": 627
+      },
+      "offset_relaxed_title_10": {
+        "precision": 0.39737991266375544,
+        "recall": 0.4252336448598131,
+        "f1": 0.4108352144469526,
+        "tp": 273,
+        "fp": 414,
+        "fn": 369
+      },
+      "offset_relaxed_title_50": {
+        "precision": 0.6157205240174672,
+        "recall": 0.6588785046728972,
+        "f1": 0.636568848758465,
+        "tp": 423,
+        "fp": 264,
+        "fn": 219
+      }
+    },
+    "timing": {
+      "load_ms": 20157.23,
+      "total_inference_s": 28791.62,
+      "mean_ms_per_row": 37440.34,
+      "median_ms_per_row": 51226.03
+    }
+  },
+  "predictions_path": "/root/tibetan-text-meta-detection/logs/benchmark_tilamb_lora_predictions.jsonl"
+}

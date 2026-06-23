@@ -1,0 +1,116 @@
+{
+  "run_id": "benchmark_qwen_pilot_title",
+  "eval_type": "row_multi_metric",
+  "started_at_utc": "2026-06-23T04:29:37.293537+00:00",
+  "model_kind": "qwen",
+  "test_jsonl": "data/llm_sft_pilot_10pct/title/test.jsonl",
+  "meta_jsonl": "data/llm_sft_pilot_10pct/title/test_meta.jsonl",
+  "checkpoint": null,
+  "base_model": "Qwen/Qwen2.5-7B-Instruct",
+  "adapter": null,
+  "row_metrics": {
+    "rows_evaluated": 769,
+    "rows_in_this_run": 769,
+    "rows_skipped_resume": 0,
+    "parse_failures": 26,
+    "parse_fail_rate": 0.033810143042912875,
+    "exact_title": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 336,
+      "fn": 688
+    },
+    "overlap_title_iou50": {
+      "precision": 0.22916666666666666,
+      "recall": 0.1119186046511628,
+      "f1": 0.150390625,
+      "tp": 77,
+      "fp": 259,
+      "fn": 611
+    },
+    "overlap_title_iou80": {
+      "precision": 0.05357142857142857,
+      "recall": 0.02616279069767442,
+      "f1": 0.03515625000000001,
+      "tp": 18,
+      "fp": 318,
+      "fn": 670
+    },
+    "text_equal_title": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 336,
+      "fn": 688
+    },
+    "offset_relaxed_title_10": {
+      "precision": 0.12202380952380952,
+      "recall": 0.059593023255813955,
+      "f1": 0.080078125,
+      "tp": 41,
+      "fp": 295,
+      "fn": 647
+    },
+    "offset_relaxed_title_50": {
+      "precision": 0.40476190476190477,
+      "recall": 0.19767441860465115,
+      "f1": 0.265625,
+      "tp": 136,
+      "fp": 200,
+      "fn": 552
+    },
+    "segment_dedup": {
+      "segments_evaluated": 720,
+      "exact_title": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 314,
+        "fn": 642
+      },
+      "overlap_title_iou50": {
+        "precision": 0.22929936305732485,
+        "recall": 0.11214953271028037,
+        "f1": 0.1506276150627615,
+        "tp": 72,
+        "fp": 242,
+        "fn": 570
+      },
+      "text_equal_title": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 314,
+        "fn": 642
+      },
+      "offset_relaxed_title_10": {
+        "precision": 0.12101910828025478,
+        "recall": 0.059190031152647975,
+        "f1": 0.0794979079497908,
+        "tp": 38,
+        "fp": 276,
+        "fn": 604
+      },
+      "offset_relaxed_title_50": {
+        "precision": 0.40764331210191085,
+        "recall": 0.19937694704049844,
+        "f1": 0.26778242677824265,
+        "tp": 128,
+        "fp": 186,
+        "fn": 514
+      }
+    },
+    "timing": {
+      "load_ms": 221331.9,
+      "total_inference_s": 1635.57,
+      "mean_ms_per_row": 2126.88,
+      "median_ms_per_row": 1735.6
+    }
+  },
+  "predictions_path": "/root/tibetan-text-meta-detection/logs/benchmark_qwen_predictions.jsonl"
+}

@@ -13,6 +13,8 @@ from llm_sft.inference import JSON_RE, parse_spans_json
 
 ModelFamily = Literal["llama", "qwen", "qwen36", "gemma"]
 
+DEFAULT_MAX_NEW_TOKENS = 768  # was 256; title JSON rarely needs more
+
 DEFAULT_BASES: dict[str, str] = {
     "tilamb": "YoLo2000/TiLamb-7B",
     "tilamb_lora": "YoLo2000/TiLamb-7B",
@@ -187,7 +189,7 @@ def predict_input_text(
     input_text: str,
     *,
     family: ModelFamily = "llama",
-    max_new_tokens: int = 256,
+    max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
     temperature: float = 0.0,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run generation on cropped input text as-is (no re-crop)."""

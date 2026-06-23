@@ -139,13 +139,48 @@ def text_equal_span_match(
     return greedy_span_match(gold, pred, matches=_matches)
 
 
+def offset_start_relaxed_span_match(
+    gold: list[dict],
+    pred: list[dict],
+    *,
+    start_tol: int = 10,
+) -> tuple[int, int, int]:
+    """Match when label agrees and |gold_start - pred_start| <= start_tol (end ignored)."""
+
+    def _matches(g: dict, p: dict) -> bool:
+        if g["label"].lower() != p["label"].lower():
+            return False
+        return abs(int(g["span_start"]) - int(p["span_start"])) <= start_tol
+
+    return greedy_span_match(gold, pred, matches=_matches)
+
+
+def offset_end_relaxed_span_match(
+    gold: list[dict],
+    pred: list[dict],
+    *,
+    end_tol: int = 10,
+) -> tuple[int, int, int]:
+    """Match when label agrees and |gold_end - pred_end| <= end_tol (start ignored)."""
+
+    def _matches(g: dict, p: dict) -> bool:
+        if g["label"].lower() != p["label"].lower():
+            return False
+        return abs(int(g["span_end"]) - int(p["span_end"])) <= end_tol
+
+    return greedy_span_match(gold, pred, matches=_matches)
+
+
 def offset_relaxed_span_match(
     gold: list[dict],
     pred: list[dict],
     *,
     start_tol: int = 10,
     end_tol: int = 10,
+    require_overlap: bool = True,
 ) -> tuple[int, int, int]:
+    """Match when label agrees, both boundaries within tolerance, optionally requiring overlap."""
+
     def _matches(g: dict, p: dict) -> bool:
         if g["label"].lower() != p["label"].lower():
             return False
@@ -153,9 +188,82 @@ def offset_relaxed_span_match(
         ps, pe = int(p["span_start"]), int(p["span_end"])
         if abs(gs - ps) > start_tol or abs(ge - pe) > end_tol:
             return False
-        return char_iou(gs, ge, ps, pe) > 0.0
+        if require_overlap and char_iou(gs, ge, ps, pe) <= 0.0:
+            return False
+        return True
 
     return greedy_span_match(gold, pred, matches=_matches)
+
+
+def best_label_pair_by_iou(
+    gold: list[dict],
+    pred: list[dict],
+) -> tuple[dict | None, dict | None, float]:
+    """Highest-IoU same-label (gold, pred) pair; used for per-row offset diagnostics."""
+    best_g: dict | None = None
+    best_p: dict | None = None
+    best_iou = -1.0
+    for g in gold:
+        for p in pred:
+            if g["label"].lower() != p["label"].lower():
+                continue
+            iou = char_iou(
+                int(g["span_start"]),
+                int(g["span_end"]),
+                int(p["span_start"]),
+                int(p["span_end"]),
+            )
+            if iou > best_iou:
+                best_iou = iou
+                best_g, best_p = g, p
+    if best_g is None:
+        return None, None, 0.0
+    return best_g, best_p, best_iou
+
+
+def row_offset_diagnostics(
+    gold: list[dict],
+    pred: list[dict],
+    *,
+    tolerances: tuple[int, ...] = (10, 50),
+) -> dict:
+    """Per-row boundary errors for the best IoU same-label pair (offset-first view)."""
+    g, p, iou = best_label_pair_by_iou(gold, pred)
+    out: dict = {
+        "has_gold": bool(gold),
+        "has_pred": bool(pred),
+        "paired": g is not None and p is not None,
+        "char_iou": iou,
+        "start_abs_err": None,
+        "end_abs_err": None,
+        "start_signed_err": None,
+        "end_signed_err": None,
+    }
+    for tol in tolerances:
+        out[f"start_within_{tol}"] = False
+        out[f"end_within_{tol}"] = False
+        out[f"both_within_{tol}"] = False
+        out[f"both_within_{tol}_overlap"] = False
+
+    if g is None or p is None:
+        return out
+
+    gs, ge = int(g["span_start"]), int(g["span_end"])
+    ps, pe = int(p["span_start"]), int(p["span_end"])
+    start_abs = abs(gs - ps)
+    end_abs = abs(ge - pe)
+    out["start_abs_err"] = start_abs
+    out["end_abs_err"] = end_abs
+    out["start_signed_err"] = ps - gs
+    out["end_signed_err"] = pe - ge
+    for tol in tolerances:
+        sw = start_abs <= tol
+        ew = end_abs <= tol
+        out[f"start_within_{tol}"] = sw
+        out[f"end_within_{tol}"] = ew
+        out[f"both_within_{tol}"] = sw and ew
+        out[f"both_within_{tol}_overlap"] = sw and ew and iou > 0.0
+    return out
 
 
 def span_eval_counts(
@@ -172,11 +280,25 @@ def span_eval_counts(
         "overlap_iou80": overlap_span_match(gold, pred, iou_threshold=0.8),
     }
     for tol in offset_tolerances:
+        counts[f"offset_start_{tol}"] = offset_start_relaxed_span_match(
+            gold, pred, start_tol=tol
+        )
+        counts[f"offset_end_{tol}"] = offset_end_relaxed_span_match(
+            gold, pred, end_tol=tol
+        )
+        counts[f"offset_both_{tol}"] = offset_relaxed_span_match(
+            gold,
+            pred,
+            start_tol=tol,
+            end_tol=tol,
+            require_overlap=False,
+        )
         counts[f"offset_relaxed_{tol}"] = offset_relaxed_span_match(
             gold,
             pred,
             start_tol=tol,
             end_tol=tol,
+            require_overlap=True,
         )
     if offset_tolerances:
         counts["offset_relaxed"] = counts[f"offset_relaxed_{offset_tolerances[0]}"]
