@@ -21,6 +21,7 @@ MODEL_ORDER = [
     "tilamb_lora",
     "alpaca",
     "qwen",
+    "gemma4",
 ]
 
 
@@ -76,6 +77,8 @@ def model_label(entry: dict) -> str:
         return "Tibetan Alpaca 7B"
     if kind == "qwen":
         return "Qwen2.5-7B-Instruct"
+    if kind == "gemma4":
+        return "Gemma 4 E4B-it"
     return kind
 
 

@@ -17,7 +17,7 @@ from eval_common import prf, span_eval_metrics
 from llm_sft.prompts import TITLE_INSTRUCTION
 from pipeline.inference import predict_segment
 
-GENERATIVE_KINDS = frozenset({"tilamb", "tilamb_lora", "alpaca", "qwen"})
+GENERATIVE_KINDS = frozenset({"tilamb", "tilamb_lora", "alpaca", "qwen", "gemma4"})
 ROBERTA_KINDS = frozenset({"koichi"})
 
 

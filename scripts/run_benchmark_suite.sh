@@ -68,14 +68,20 @@ run_all() {
       tilamb_lora) run_one tilamb_lora --adapter "${LORA_DIR}" ;;
       alpaca) run_one alpaca ;;
       qwen) run_one qwen ;;
+      gemma4) run_one gemma4 ;;
       *) echo "Unknown MODEL=${MODEL}"; exit 1 ;;
     esac
   else
-    run_one koichi --checkpoint "${KOICHI_DIR}"
-    run_one tilamb
-    run_one tilamb_lora --adapter "${LORA_DIR}"
-    run_one alpaca
-    run_one qwen
+    local failed=0
+    run_one koichi --checkpoint "${KOICHI_DIR}" || failed=1
+    run_one tilamb || failed=1
+    run_one tilamb_lora --adapter "${LORA_DIR}" || failed=1
+    run_one alpaca || failed=1
+    run_one qwen || failed=1
+    run_one gemma4 || failed=1
+    if [[ "${failed}" -ne 0 ]]; then
+      echo "WARN: one or more models failed; check logs above"
+    fi
   fi
   python3 scripts/compare_benchmark.py \
     --metrics-dir "${LOG_DIR}" \

@@ -11,13 +11,15 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from llm_sft.inference import JSON_RE, parse_spans_json
 
-ModelFamily = Literal["llama", "qwen"]
+ModelFamily = Literal["llama", "qwen", "gemma"]
 
 DEFAULT_BASES: dict[str, str] = {
     "tilamb": "YoLo2000/TiLamb-7B",
     "tilamb_lora": "YoLo2000/TiLamb-7B",
     "alpaca": "ymaoj/Tibetan-Alpaca-7B",
     "qwen": "Qwen/Qwen2.5-7B-Instruct",
+    # 128K context, 262K vocab, 140+ langs; fits RTX 4090 in 4-bit (~8B weights)
+    "gemma4": "google/gemma-4-E4B-it",
 }
 
 
@@ -69,6 +71,14 @@ def spec_for_kind(
             family="qwen",
             load_in_4bit=load_in_4bit,
         )
+    if kind == "gemma4":
+        return GenerativeSpec(
+            kind=kind,
+            base_model=base_model or DEFAULT_BASES["gemma4"],
+            adapter_path=None,
+            family="gemma",
+            load_in_4bit=load_in_4bit,
+        )
     raise ValueError(f"Unknown generative kind: {kind}")
 
 
@@ -104,7 +114,16 @@ def load_generative_model(spec: GenerativeSpec) -> tuple[Any, Any]:
             bnb_4bit_quant_type="nf4",
         )
     tok_source = spec.adapter_path or spec.base_model
-    tokenizer = AutoTokenizer.from_pretrained(tok_source, trust_remote_code=True)
+    if spec.kind == "gemma4":
+        try:
+            from transformers import AutoProcessor
+
+            processor = AutoProcessor.from_pretrained(spec.base_model)
+            tokenizer = processor.tokenizer
+        except Exception:
+            tokenizer = AutoTokenizer.from_pretrained(spec.base_model, trust_remote_code=True)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(tok_source, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         spec.base_model,
         trust_remote_code=True,
