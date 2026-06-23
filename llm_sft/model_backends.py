@@ -11,15 +11,16 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from llm_sft.inference import JSON_RE, parse_spans_json
 
-ModelFamily = Literal["llama", "qwen", "gemma"]
+ModelFamily = Literal["llama", "qwen", "qwen36", "gemma"]
 
 DEFAULT_BASES: dict[str, str] = {
     "tilamb": "YoLo2000/TiLamb-7B",
     "tilamb_lora": "YoLo2000/TiLamb-7B",
     "alpaca": "ymaoj/Tibetan-Alpaca-7B",
     "qwen": "Qwen/Qwen2.5-7B-Instruct",
-    # 128K context, 262K vocab, 140+ langs; fits RTX 4090 in 4-bit (~8B weights)
     "gemma4": "google/gemma-4-E4B-it",
+    "qwen36_27b": "Qwen/Qwen3.6-27B",
+    "deepseek_r1_14b": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
 }
 
 
@@ -79,7 +80,36 @@ def spec_for_kind(
             family="gemma",
             load_in_4bit=load_in_4bit,
         )
+    if kind == "qwen36_27b":
+        return GenerativeSpec(
+            kind=kind,
+            base_model=base_model or DEFAULT_BASES["qwen36_27b"],
+            adapter_path=None,
+            family="qwen36",
+            load_in_4bit=load_in_4bit,
+        )
+    if kind == "deepseek_r1_14b":
+        return GenerativeSpec(
+            kind=kind,
+            base_model=base_model or DEFAULT_BASES["deepseek_r1_14b"],
+            adapter_path=None,
+            family="qwen",
+            load_in_4bit=load_in_4bit,
+        )
     raise ValueError(f"Unknown generative kind: {kind}")
+
+
+def effective_max_context(model: Any) -> int:
+    cfg = model.config
+    max_pos = getattr(cfg, "max_position_embeddings", None)
+    if max_pos:
+        return int(max_pos)
+    text_cfg = getattr(cfg, "text_config", None)
+    if text_cfg is not None:
+        text_max = getattr(text_cfg, "max_position_embeddings", None)
+        if text_max:
+            return int(text_max)
+    return 4096
 
 
 def format_prompt(
@@ -91,10 +121,15 @@ def format_prompt(
 ) -> str:
     user = f"{instruction}\n\n{segment}"
     if getattr(tokenizer, "chat_template", None):
+        template_kwargs: dict[str, Any] = {}
+        if family == "qwen36":
+            # Benchmark needs direct JSON, not chain-of-thought traces.
+            template_kwargs["enable_thinking"] = False
         return tokenizer.apply_chat_template(
             [{"role": "user", "content": user}],
             tokenize=False,
             add_generation_prompt=True,
+            **template_kwargs,
         )
     if family == "qwen":
         return (
@@ -122,6 +157,13 @@ def load_generative_model(spec: GenerativeSpec) -> tuple[Any, Any]:
             tokenizer = processor.tokenizer
         except Exception:
             tokenizer = AutoTokenizer.from_pretrained(spec.base_model, trust_remote_code=True)
+    elif spec.kind == "alpaca":
+        # Llama2/SentencePiece — avoid broken tiktoken conversion on tokenizer.model
+        tokenizer = AutoTokenizer.from_pretrained(
+            spec.base_model,
+            use_fast=False,
+            trust_remote_code=True,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(tok_source, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
@@ -152,7 +194,7 @@ def predict_input_text(
     prompt = format_prompt(tokenizer, instruction, input_text, family=family)
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     prompt_tokens = int(inputs["input_ids"].shape[1])
-    max_pos = getattr(model.config, "max_position_embeddings", None) or 4096
+    max_pos = effective_max_context(model)
     truncated = prompt_tokens >= max_pos - max_new_tokens
 
     outputs = model.generate(

@@ -22,6 +22,8 @@ MODEL_ORDER = [
     "alpaca",
     "qwen",
     "gemma4",
+    "qwen36_27b",
+    "deepseek_r1_14b",
 ]
 
 
@@ -79,6 +81,10 @@ def model_label(entry: dict) -> str:
         return "Qwen2.5-7B-Instruct"
     if kind == "gemma4":
         return "Gemma 4 E4B-it"
+    if kind == "qwen36_27b":
+        return "Qwen3.6-27B"
+    if kind == "deepseek_r1_14b":
+        return "DeepSeek-R1-Distill-Qwen-14B"
     return kind
 
 

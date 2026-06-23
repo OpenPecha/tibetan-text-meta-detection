@@ -23,7 +23,7 @@ source "${VENV}/bin/activate"
 export HF_TOKEN="$(tr -d '\r\n' < /root/.hf_token 2>/dev/null || true)"
 export HUGGING_FACE_HUB_TOKEN="${HF_TOKEN:-}"
 
-MODELS=(koichi tilamb tilamb_lora alpaca qwen gemma4)
+MODELS=(koichi tilamb tilamb_lora alpaca qwen gemma4 qwen36_27b deepseek_r1_14b)
 for m in "${MODELS[@]}"; do
   metrics="${REPO}/logs/benchmark_${m}_metrics.json"
   if [[ -f "${metrics}" ]]; then

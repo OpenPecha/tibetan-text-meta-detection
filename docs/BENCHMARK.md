@@ -23,6 +23,8 @@ This is **not** the RoBERTa segment test (`data/roberta_full/splits/test.jsonl`,
 | Tibetan Alpaca 7B | `alpaca` | `ymaoj/Tibetan-Alpaca-7B` (zero-shot) |
 | Qwen2.5-7B-Instruct | `qwen` | `Qwen/Qwen2.5-7B-Instruct` (zero-shot) |
 | Gemma 4 E4B-it | `gemma4` | `google/gemma-4-E4B-it` (zero-shot, 128K context) |
+| Qwen3.6-27B | `qwen36_27b` | `Qwen/Qwen3.6-27B` (zero-shot, thinking disabled, 256K context) |
+| DeepSeek-R1-Distill-Qwen-14B | `deepseek_r1_14b` | `deepseek-ai/DeepSeek-R1-Distill-Qwen-14B` (zero-shot) |
 
 **Fairness rule:** every model receives the same `input` string from the test row. Gold spans come from the row `output` JSON (crop-relative offsets). No re-cropping at eval time.
 

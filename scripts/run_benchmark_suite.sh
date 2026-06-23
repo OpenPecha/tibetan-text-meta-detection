@@ -69,6 +69,8 @@ run_all() {
       alpaca) run_one alpaca ;;
       qwen) run_one qwen ;;
       gemma4) run_one gemma4 ;;
+      qwen36_27b) run_one qwen36_27b ;;
+      deepseek_r1_14b) run_one deepseek_r1_14b ;;
       *) echo "Unknown MODEL=${MODEL}"; exit 1 ;;
     esac
   else
@@ -79,6 +81,8 @@ run_all() {
     run_one alpaca || failed=1
     run_one qwen || failed=1
     run_one gemma4 || failed=1
+    run_one qwen36_27b || failed=1
+    run_one deepseek_r1_14b || failed=1
     if [[ "${failed}" -ne 0 ]]; then
       echo "WARN: one or more models failed; check logs above"
     fi
