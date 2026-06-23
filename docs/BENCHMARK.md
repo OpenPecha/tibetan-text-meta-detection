@@ -19,7 +19,7 @@ This is **not** the RoBERTa segment test (`data/roberta_full/splits/test.jsonl`,
 |-------|------|-------------|
 | Koichi RoBERTa NER | `koichi` | `ganga4364/tibetan-metadata-koichi-ner` |
 | TiLamb-7B base | `tilamb` | `YoLo2000/TiLamb-7B` (zero-shot) |
-| TiLamb pilot LoRA | `tilamb_lora` | `ganga4364/tibetan-metadata-title-tilamb-lora-pilot` |
+| TiLamb pilot LoRA | `tilamb_lora` | [ganga4364/tibetan-metadata-title-tilamb-lora-pilot](https://huggingface.co/ganga4364/tibetan-metadata-title-tilamb-lora-pilot) | LoRA on TiLamb-7B; inference: [TILAMB_TITLE_LORA_INFERENCE.md](../TILAMB_TITLE_LORA_INFERENCE.md) |
 | Tibetan Alpaca 7B | `alpaca` | `ymaoj/Tibetan-Alpaca-7B` (zero-shot) |
 | Qwen2.5-7B-Instruct | `qwen` | `Qwen/Qwen2.5-7B-Instruct` (zero-shot) |
 | Gemma 4 E4B-it | `gemma4` | `google/gemma-4-E4B-it` (zero-shot, 128K context) |

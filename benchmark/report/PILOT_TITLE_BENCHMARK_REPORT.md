@@ -89,6 +89,8 @@ Every model receives the **identical** `input` string from each test row. Gold s
 
 Published adapter: [ganga4364/tibetan-metadata-title-tilamb-lora-pilot](https://huggingface.co/ganga4364/tibetan-metadata-title-tilamb-lora-pilot).
 
+**Inference guide:** [docs/TILAMB_TITLE_LORA_INFERENCE.md](../../docs/TILAMB_TITLE_LORA_INFERENCE.md)
+
 ### 3.3 Incomplete or failed runs
 
 | Model | Rows completed | Status |

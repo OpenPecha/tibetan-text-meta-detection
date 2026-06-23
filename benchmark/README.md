@@ -30,4 +30,4 @@ python scripts/recompute_benchmark_offset_metrics.py \
 
 ## Re-run inference
 
-See [docs/BENCHMARK.md](../docs/BENCHMARK.md) and `scripts/run_benchmark_suite.sh`.
+See [docs/TILAMB_TITLE_LORA_INFERENCE.md](../docs/TILAMB_TITLE_LORA_INFERENCE.md) for the **TiLamb title LoRA** adapter. Other models: [docs/BENCHMARK.md](../docs/BENCHMARK.md) and `scripts/run_benchmark_suite.sh`.
