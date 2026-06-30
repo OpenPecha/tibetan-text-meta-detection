@@ -1,0 +1,12 @@
+{
+  "predictions_path": "logs/benchmark_tilamb_lora_author_predictions.jsonl",
+  "rows_total": 688,
+  "rows_with_gold": 609,
+  "rows_with_pred_text": 607,
+  "emitted_text_exact": 201,
+  "emitted_text_exact_rate": 0.33004926108374383,
+  "emitted_text_norm": 208,
+  "emitted_text_norm_rate": 0.3415435139573071,
+  "emitted_text_contained": 404,
+  "emitted_text_contained_rate": 0.6633825944170771
+}
