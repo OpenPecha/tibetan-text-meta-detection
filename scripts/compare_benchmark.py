@@ -88,17 +88,18 @@ def model_label(entry: dict) -> str:
     return kind
 
 
-def build_report(entries: list[dict]) -> str:
+def build_report(entries: list[dict], task: str = "title") -> str:
+    task_title = task.capitalize()
     lines = [
-        "# Tibetan Metadata Benchmark — Pilot Title Test",
+        f"# Tibetan Metadata Benchmark — Pilot {task_title} Test",
         "",
         "Primary metric scope: **row-level** evaluation on "
-        "`ganga4364/tibetan-metadata-llm-sft` → `title/test.jsonl`.",
+        f"`ganga4364/tibetan-metadata-llm-sft` → `{task}/test.jsonl`.",
         "",
         "Each model sees the same cropped `input` text; gold spans are crop-relative "
         "from the SFT `output` JSON.",
         "",
-        "## Leaderboard (title F1)",
+        f"## Leaderboard ({task} F1)",
         "",
         "| Model | Rows | Exact F1 | Overlap IoU50 F1 | Text equal F1 | Offset ±10 F1 | Offset ±50 F1 | Parse fail | Mean ms/row |",
         "|-------|------|----------|------------------|---------------|---------------|---------------|------------|-------------|",
@@ -164,6 +165,12 @@ def build_report(entries: list[dict]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--task",
+        choices=("title", "author"),
+        default="title",
+        help="Detection task; selects metric filenames, wording, and default outputs.",
+    )
+    parser.add_argument(
         "--metrics-dir",
         type=Path,
         default=Path("logs"),
@@ -171,17 +178,26 @@ def main() -> None:
     parser.add_argument(
         "--output-md",
         type=Path,
-        default=Path("docs/metrics/benchmark_pilot_title.md"),
+        default=None,
+        help="Defaults to docs/metrics/benchmark_pilot_<task>.md",
     )
     parser.add_argument(
         "--output-json",
         type=Path,
-        default=Path("docs/metrics/benchmark_pilot_title.json"),
+        default=None,
+        help="Defaults to docs/metrics/benchmark_pilot_<task>.json",
     )
     args = parser.parse_args()
 
+    task = args.task
+    output_md = args.output_md or Path(f"docs/metrics/benchmark_pilot_{task}.md")
+    output_json = args.output_json or Path(f"docs/metrics/benchmark_pilot_{task}.json")
+
     by_kind: dict[str, dict] = {}
     for path in sorted(args.metrics_dir.glob("benchmark_*_metrics.json")):
+        is_author = path.name.endswith("_author_metrics.json")
+        if (task == "author") != is_author:
+            continue
         entry = load_benchmark_metrics(path)
         by_kind[entry["model_kind"]] = entry
 
@@ -191,11 +207,13 @@ def main() -> None:
             entries.append(entry)
 
     if not entries:
-        raise SystemExit(f"No benchmark_*_metrics.json files in {args.metrics_dir}")
+        raise SystemExit(
+            f"No {task} benchmark_*_metrics.json files in {args.metrics_dir}"
+        )
 
-    report = build_report(entries)
+    report = build_report(entries, task=task)
     out_json = {
-        "benchmark": "pilot_title_test",
+        "benchmark": f"pilot_{task}_test",
         "models": [
             {
                 "model_kind": e["model_kind"],
@@ -209,12 +227,12 @@ def main() -> None:
         ],
     }
 
-    args.output_md.parent.mkdir(parents=True, exist_ok=True)
-    args.output_md.write_text(report, encoding="utf-8")
-    args.output_json.write_text(json.dumps(out_json, indent=2), encoding="utf-8")
+    output_md.parent.mkdir(parents=True, exist_ok=True)
+    output_md.write_text(report, encoding="utf-8")
+    output_json.write_text(json.dumps(out_json, indent=2), encoding="utf-8")
     print(report)
-    print(f"Wrote {args.output_md}")
-    print(f"Wrote {args.output_json}")
+    print(f"Wrote {output_md}")
+    print(f"Wrote {output_json}")
 
 
 if __name__ == "__main__":

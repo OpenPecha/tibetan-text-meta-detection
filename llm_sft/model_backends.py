@@ -191,6 +191,7 @@ def predict_input_text(
     family: ModelFamily = "llama",
     max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
     temperature: float = 0.0,
+    label: str = "title",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run generation on cropped input text as-is (no re-crop)."""
     prompt = format_prompt(tokenizer, instruction, input_text, family=family)
@@ -213,7 +214,7 @@ def predict_input_text(
     parse_ok = bool(raw.startswith("{") or JSON_RE.search(raw))
     spans = [
         {
-            "label": "title",
+            "label": label,
             "span_start": int(s["start"]),
             "span_end": int(s["end"]),
             "text": s.get("text", ""),

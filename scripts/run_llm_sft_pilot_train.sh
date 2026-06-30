@@ -25,9 +25,13 @@ PY
 ln -sfn "${PILOT_DATA}/title" /root/LLaMA-Factory/data/tibetan_title_sft_pilot
 ln -sfn "${PILOT_DATA}/author" /root/LLaMA-Factory/data/tibetan_author_sft_pilot
 
-echo "=== Pilot Title LoRA started at $(date) ===" | tee "${LOG_DIR}/title_pilot_train.log"
-llamafactory-cli train "${REPO}/configs/llama_factory/title_lora_sft_pilot.yaml" 2>&1 | tee -a "${LOG_DIR}/title_pilot_train.log"
-echo "=== Pilot Title LoRA finished at $(date) ===" | tee -a "${LOG_DIR}/title_pilot_train.log"
+if [[ "${SKIP_TITLE:-0}" == "1" ]]; then
+  echo "SKIP_TITLE=1 — skipping title pilot training" | tee "${LOG_DIR}/title_pilot_train.log"
+else
+  echo "=== Pilot Title LoRA started at $(date) ===" | tee "${LOG_DIR}/title_pilot_train.log"
+  llamafactory-cli train "${REPO}/configs/llama_factory/title_lora_sft_pilot.yaml" 2>&1 | tee -a "${LOG_DIR}/title_pilot_train.log"
+  echo "=== Pilot Title LoRA finished at $(date) ===" | tee -a "${LOG_DIR}/title_pilot_train.log"
+fi
 
 if [[ "${SKIP_AUTHOR:-0}" == "1" ]]; then
   echo "SKIP_AUTHOR=1 — skipping author pilot training" | tee -a "${LOG_DIR}/author_pilot_train.log"

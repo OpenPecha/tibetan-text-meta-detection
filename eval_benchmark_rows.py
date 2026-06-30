@@ -14,7 +14,7 @@ import torch
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
 from eval_common import prf, span_eval_metrics
-from llm_sft.prompts import TITLE_INSTRUCTION
+from llm_sft.prompts import INSTRUCTIONS, TITLE_INSTRUCTION
 from pipeline.inference import predict_segment
 
 GENERATIVE_KINDS = frozenset({
@@ -32,6 +32,8 @@ ROBERTA_KINDS = frozenset({"koichi"})
 def load_test_rows(
     test_jsonl: Path,
     meta_jsonl: Path | None,
+    *,
+    default_instruction: str = TITLE_INSTRUCTION,
 ) -> list[dict[str, Any]]:
     meta_by_line: list[dict[str, Any]] = []
     if meta_jsonl and meta_jsonl.is_file():
@@ -53,7 +55,7 @@ def load_test_rows(
                     "line_idx": line_idx,
                     "doc_id": meta.get("doc_id", ""),
                     "segment_id": meta.get("segment_id", ""),
-                    "instruction": row.get("instruction", TITLE_INSTRUCTION),
+                    "instruction": row.get("instruction", default_instruction),
                     "input": row["input"],
                     "output": row["output"],
                     "meta": meta,
@@ -62,13 +64,13 @@ def load_test_rows(
     return rows
 
 
-def gold_spans_from_output(output: Any) -> list[dict[str, Any]]:
+def gold_spans_from_output(output: Any, label: str = "title") -> list[dict[str, Any]]:
     if isinstance(output, str):
         output = json.loads(output)
     spans = output.get("spans", []) if isinstance(output, dict) else []
     return [
         {
-            "label": "title",
+            "label": label,
             "span_start": int(s["start"]),
             "span_end": int(s["end"]),
             "text": s.get("text", ""),
@@ -220,16 +222,17 @@ def predict_koichi_titles(
     tokenizer: Any,
     input_text: str,
     device: torch.device,
+    label: str = "title",
 ) -> list[dict[str, Any]]:
     pred = predict_segment(model, tokenizer, input_text, device=device)
     return [
         {
-            "label": "title",
+            "label": label,
             "span_start": int(s["span_start"]),
             "span_end": int(s["span_end"]),
         }
         for s in pred
-        if s.get("label") == "title"
+        if s.get("label") == label
     ]
 
 
@@ -246,6 +249,7 @@ def evaluate_rows(
     adapter: str | None,
     load_in_4bit: bool,
     max_new_tokens: int,
+    label: str = "title",
 ) -> dict[str, Any]:
     done = load_completed_row_ids(predictions_path) if resume else set()
     predictions_path.parent.mkdir(parents=True, exist_ok=True)
@@ -287,7 +291,7 @@ def evaluate_rows(
                 break
 
             input_text = row["input"]
-            gold = gold_spans_from_output(row["output"])
+            gold = gold_spans_from_output(row["output"], label=label)
             t1 = time.perf_counter()
 
             parse_ok = True
@@ -299,6 +303,7 @@ def evaluate_rows(
                     roberta_tokenizer,
                     input_text,
                     device,
+                    label=label,
                 )
             else:
                 assert gen_model is not None and gen_tokenizer is not None and gen_spec
@@ -309,6 +314,7 @@ def evaluate_rows(
                     input_text,
                     family=gen_spec.family,
                     max_new_tokens=max_new_tokens,
+                    label=label,
                 )
                 parse_ok = gen_meta["parse_ok"]
                 raw_response = gen_meta.get("raw_response")
@@ -381,14 +387,22 @@ def main() -> None:
         choices=sorted(ROBERTA_KINDS | GENERATIVE_KINDS),
     )
     parser.add_argument(
+        "--task",
+        choices=("title", "author"),
+        default="title",
+        help="Detection task; selects instruction, span label, and default paths.",
+    )
+    parser.add_argument(
         "--test-jsonl",
         type=Path,
-        default=Path("data/llm_sft_pilot_10pct/title/test.jsonl"),
+        default=None,
+        help="Defaults to data/llm_sft_pilot_10pct/<task>/test.jsonl",
     )
     parser.add_argument(
         "--meta-jsonl",
         type=Path,
-        default=Path("data/llm_sft_pilot_10pct/title/test_meta.jsonl"),
+        default=None,
+        help="Defaults to data/llm_sft_pilot_10pct/<task>/test_meta.jsonl",
     )
     parser.add_argument(
         "--checkpoint",
@@ -436,11 +450,22 @@ def main() -> None:
 
         max_new_tokens = DEFAULT_MAX_NEW_TOKENS
 
-    predictions = args.predictions or Path(f"logs/benchmark_{args.model_kind}_predictions.jsonl")
-    metrics_out = args.metrics_out or Path(f"logs/benchmark_{args.model_kind}_metrics.json")
+    task = args.task
+    instruction = INSTRUCTIONS[task]
+    # Title artifacts keep their historical (taskless) filenames; author artifacts
+    # get a "_author" suffix so the two tasks never overwrite each other.
+    suffix = "" if task == "title" else f"_{task}"
+    test_jsonl = args.test_jsonl or Path(f"data/llm_sft_pilot_10pct/{task}/test.jsonl")
+    meta_jsonl = args.meta_jsonl or Path(f"data/llm_sft_pilot_10pct/{task}/test_meta.jsonl")
+    predictions = args.predictions or Path(
+        f"logs/benchmark_{args.model_kind}{suffix}_predictions.jsonl"
+    )
+    metrics_out = args.metrics_out or Path(
+        f"logs/benchmark_{args.model_kind}{suffix}_metrics.json"
+    )
 
-    rows = load_test_rows(args.test_jsonl, args.meta_jsonl)
-    print(f"Loaded {len(rows)} test rows from {args.test_jsonl}")
+    rows = load_test_rows(test_jsonl, meta_jsonl, default_instruction=instruction)
+    print(f"Loaded {len(rows)} test rows from {test_jsonl}")
 
     base_model = args.base_model
     if base_model is None and args.model_kind in GENERATIVE_KINDS:
@@ -460,16 +485,18 @@ def main() -> None:
         adapter=args.adapter,
         load_in_4bit=not args.no_4bit,
         max_new_tokens=max_new_tokens,
+        label=task,
     )
 
     result = {
-        "run_id": f"benchmark_{args.model_kind}_pilot_title",
+        "run_id": f"benchmark_{args.model_kind}_pilot_{task}",
         "eval_type": "row_multi_metric",
+        "task": task,
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "model_kind": args.model_kind,
         "max_new_tokens": max_new_tokens,
-        "test_jsonl": str(args.test_jsonl),
-        "meta_jsonl": str(args.meta_jsonl),
+        "test_jsonl": str(test_jsonl),
+        "meta_jsonl": str(meta_jsonl),
         "checkpoint": args.checkpoint if args.model_kind in ROBERTA_KINDS else None,
         "base_model": base_model,
         "adapter": args.adapter if args.model_kind == "tilamb_lora" else None,
