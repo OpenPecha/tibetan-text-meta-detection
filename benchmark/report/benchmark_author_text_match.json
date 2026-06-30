@@ -1,8 +1,32 @@
 {
-  "predictions_path": "logs/benchmark_tilamb_lora_author_predictions.jsonl",
+  "predictions_path": "benchmark\\logs\\benchmark_tilamb_lora_author_predictions.jsonl",
   "rows_total": 688,
   "rows_with_gold": 609,
   "rows_with_pred_text": 607,
+  "text_equal_f1": {
+    "precision": 0.2934306569343066,
+    "recall": 0.33004926108374383,
+    "f1": 0.3106646058732612,
+    "tp": 201,
+    "fp": 484,
+    "fn": 408
+  },
+  "text_equal_norm_f1": {
+    "precision": 0.30364963503649633,
+    "recall": 0.3415435139573071,
+    "f1": 0.321483771251932,
+    "tp": 208,
+    "fp": 477,
+    "fn": 401
+  },
+  "text_contained_f1": {
+    "precision": 0.5897810218978102,
+    "recall": 0.6633825944170771,
+    "f1": 0.624420401854714,
+    "tp": 404,
+    "fp": 281,
+    "fn": 205
+  },
   "emitted_text_exact": 201,
   "emitted_text_exact_rate": 0.33004926108374383,
   "emitted_text_norm": 208,

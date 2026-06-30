@@ -11,34 +11,45 @@
 
 We trained a TiLamb-7B LoRA adapter for **author** span extraction on the 10% pilot SFT corpus and evaluated it on the matching held-out test split (**688 rows**).
 
+> **Primary judgment for author = text-equalness, not offset.** Because the author sits at the very end of long inputs, character offsets are unreliable (see §5), so we judge the author model on whether it emits the **correct author text**, independent of offsets. Offset metrics are retained as secondary diagnostics.
+
+### Primary metric — emitted text-equal F1 (offset-independent)
+
+| Metric | Precision | Recall | **F1** |
+|--------|-----------|--------|--------|
+| Text-equal (exact string) | 29.3% | 33.0% | **31.1%** |
+| Text-equal (normalized*) | 30.4% | 34.2% | **32.1%** |
+| Text-contained (pred ⊆ gold or gold ⊆ pred) | 59.0% | 66.3% | **62.4%** |
+
+\*Normalized = trailing whitespace / tsheg (`་`) / shad (`།`) stripped. Parse failure rate: **0.0%**.
+
+### Secondary metrics — offset-based (diagnostic only)
+
 | Metric | Value |
 |--------|-------|
-| Overlap IoU50 F1 | **1.39%** |
-| Offset ±50 F1 | **2.94%** |
+| Overlap IoU50 F1 | 1.39% |
+| Offset ±50 F1 | 2.94% |
 | Exact-offset F1 | 0.00% |
-| Parse failure rate | **0.0%** |
-| **Emitted-text exact match** (offset-independent) | **33.0%** |
-| **Emitted-text overlap match** (offset-independent) | **66.3%** |
-| Mean boundary error (MAE start / end) | **~981 / ~995 chars** |
+| Mean boundary error (MAE start / end) | ~981 / ~995 chars |
 
 **Headline finding — the model extracts the author, but cannot localize it.**
 
-The adapter produces **valid JSON every time** (0% parse failure) and emits the **correct author text in a third of rows exactly (33%) and an overlapping author string in two thirds of rows (66%)**. However, the **character offsets are wrong by ~980 characters on average**, so every offset-based metric collapses to near-zero.
+The adapter produces **valid JSON every time** (0% parse failure) and emits a **correct author string in a third of rows exactly and an overlapping author string in two thirds of rows**. But the **character offsets are wrong by ~980 characters on average**, so every offset-based metric collapses to near-zero. We therefore adopt **text-equalness as the primary author metric**.
 
-The cause is structural, not a training bug (train and test are consistent):
+The offset failure is structural, not a training bug (train and test are consistent):
 
-| Task | Gold span position in input | Median offset | Offset-based IoU50 |
-|------|-----------------------------|---------------|--------------------|
-| Title (prior benchmark) | **start** of segment | ~5 chars (rel 0.00) | 58.9% |
-| **Author (this benchmark)** | **end** of segment | **~8,327 chars (rel 0.98)** | **1.4%** |
+| Task | Gold span position in input | Median offset | Offset IoU50 | Primary metric |
+|------|-----------------------------|---------------|--------------|----------------|
+| Title (prior benchmark) | **start** of segment | ~5 chars (rel 0.00) | 58.9% | offset IoU50 |
+| **Author (this benchmark)** | **end** of segment | **~8,327 chars (rel 0.98)** | 1.4% | **text-equal F1 (31–62%)** |
 
-Authors sit at ~98% depth in ~8,800-character inputs. A 7B LLM cannot count to ~8,300 characters, so it approximates the offset (and clusters its guesses), even though it reads the right author. Titles, which sit at offset ~0, were trivially localizable — hence the large gap from the title benchmark.
+Authors sit at ~98% depth in ~8,800-character inputs. A 7B LLM cannot count to ~8,300 characters, so it approximates the offset, even though it reads the right author. Titles, which sit at offset ~0, were trivially localizable — hence the divergent primary metric.
 
 **Takeaways**
 
-- For **author** extraction, the offset-as-JSON formulation is the wrong interface: report and consume the **emitted text**, then re-locate it in the source with a string search.
-- The model is *not* failing the task — it identifies the author ~66% of the time — it is failing **character counting** at depth ~8k.
-- A token-classification head (like Koichi for titles) or a "predict text, then `str.find`" post-step would recover most of the lost signal.
+- Judge and consume the author model by **emitted text**: it gets an overlapping author **62.4% F1** of the time, then re-locate the string in the source with a search if offsets are needed.
+- The model is *not* failing the task — it is failing **character counting** at depth ~8k, which is why offset metrics are demoted to diagnostics.
+- A token-classification head (like Koichi for titles) or a "predict text, then `str.find`" post-step would recover the offsets.
 
 ---
 
@@ -136,7 +147,9 @@ Per-row predictions: [../logs/benchmark_tilamb_lora_author_predictions.jsonl](..
 
 ---
 
-## 5. Results
+## 5. Secondary metrics — offset-based (diagnostic)
+
+These are retained for completeness and to document the offset failure; they are **not** the primary author judgment (see §6).
 
 ### 5.1 Standard leaderboard (688 rows)
 
@@ -159,15 +172,27 @@ Recomputed from saved predictions (`scripts/recompute_benchmark_offset_metrics.p
 
 ---
 
-## 6. Offset-independent text match
+## 6. Primary metric — offset-independent text-equalness
 
-The metric the model actually deserves credit for. Computed by `scripts/analyze_emitted_text_match.py`, comparing the model's **emitted `text` field** to gold author text (ignoring offsets), over 609 rows with a gold author. Full JSON: [benchmark_author_text_match.json](benchmark_author_text_match.json).
+**This is the primary judgment factor for the author task.** Computed by `scripts/analyze_emitted_text_match.py`, comparing the model's **emitted `text` field** to gold author text (offsets ignored). Full JSON: [benchmark_author_text_match.json](benchmark_author_text_match.json).
+
+### 6.1 Span-level micro F1 (688 rows; FPs on no-author rows counted)
+
+| Metric | Precision | Recall | **F1** | TP / FP / FN |
+|--------|-----------|--------|--------|--------------|
+| Text-equal (exact string) | 29.34% | 33.00% | **31.07%** | 201 / 484 / 408 |
+| Text-equal (normalized) | 30.36% | 34.15% | **32.15%** | 208 / 477 / 401 |
+| Text-contained | 58.98% | 66.34% | **62.44%** | 404 / 281 / 205 |
+
+Normalized strips trailing whitespace / tsheg (`་`) / shad (`།`). "Contained" credits a prediction when the emitted string is a substring of the gold author or vice-versa.
+
+### 6.2 Row-level hit rate (over 609 rows that have a gold author)
 
 | Match type | Rows | Rate |
 |------------|------|------|
 | Exact emitted-text match | 201 | **33.0%** |
-| Normalized match (trailing tsheg/punctuation stripped) | 208 | 34.2% |
-| Containment (pred ⊆ gold or gold ⊆ pred) | 404 | **66.3%** |
+| Normalized match | 208 | 34.2% |
+| Containment | 404 | **66.3%** |
 
 So the adapter returns a string that overlaps the true author in **~2 of every 3 rows** — the information is there; only the numeric offset is unreliable.
 
@@ -177,6 +202,8 @@ So the adapter returns a string that overlaps the true author in **~2 of every 3
 |--|------|-----|----------------------|----------------|
 | Gold | 8563 | 8576 | `འཕགས་པ་བྱམས་པ` | — |
 | Prediction | 8266 | 8270 | `འགྲུ` (wrong region) | **`འཕགས་པ་བྱམས་པས`** (correct author) |
+
+> To reproduce: `python scripts/analyze_emitted_text_match.py benchmark/logs/benchmark_tilamb_lora_author_predictions.jsonl`
 
 ---
 

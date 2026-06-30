@@ -20,7 +20,15 @@ LoRA adapter on [YoLo2000/TiLamb-7B](https://huggingface.co/YoLo2000/TiLamb-7B) 
 | Training data | [ganga4364/tibetan-metadata-llm-sft](https://huggingface.co/datasets/ganga4364/tibetan-metadata-llm-sft) (10% pilot) |
 | Benchmark report | [OpenPecha/tibetan-text-meta-detection](https://github.com/OpenPecha/tibetan-text-meta-detection/blob/main/benchmark/report/PILOT_AUTHOR_BENCHMARK_REPORT.md) |
 
-**Pilot benchmark (author test split):** see the [benchmark report](https://github.com/OpenPecha/tibetan-text-meta-detection/blob/main/benchmark/report/PILOT_AUTHOR_BENCHMARK_REPORT.md) for Overlap IoU50 / Offset ±50 / start-end hit rates.
+**Pilot benchmark (688-row author test).** The author sits at the *end* of long (~8.8k-char) inputs, so character offsets are unreliable — the primary metric is **text-equalness** (does the model emit the right author string), not offset:
+
+| Primary: emitted text-equal F1 | Precision | Recall | F1 |
+|--------------------------------|-----------|--------|----|
+| Exact string | 29.3% | 33.0% | **31.1%** |
+| Normalized | 30.4% | 34.2% | **32.1%** |
+| Contained | 59.0% | 66.3% | **62.4%** |
+
+Offset-based metrics are near-zero by design (MAE ~980 chars). Consume the emitted `text` and re-locate it with a string search. Full [benchmark report](https://github.com/OpenPecha/tibetan-text-meta-detection/blob/main/benchmark/report/PILOT_AUTHOR_BENCHMARK_REPORT.md).
 
 ## Training
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 _TRAILING = re.compile(r"[\s།་]+$")
@@ -21,6 +22,42 @@ def norm(s: str | None) -> str:
     return _TRAILING.sub("", (s or "").strip())
 
 
+def _prf(tp: int, fp: int, fn: int) -> dict:
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+    }
+
+
+def _exact_counts(gold: list[str], pred: list[str]) -> tuple[int, int, int]:
+    """Multiset intersection (order-independent one-to-one matching)."""
+    gc, pc = Counter(gold), Counter(pred)
+    tp = sum((gc & pc).values())
+    return tp, sum(pc.values()) - tp, sum(gc.values()) - tp
+
+
+def _contained_counts(gold: list[str], pred: list[str]) -> tuple[int, int, int]:
+    """Greedy one-to-one match where pred ⊆ gold or gold ⊆ pred."""
+    used = [False] * len(pred)
+    tp = 0
+    for g in gold:
+        for i, p in enumerate(pred):
+            if used[i] or not p or not g:
+                continue
+            if p in g or g in p:
+                used[i] = True
+                tp += 1
+                break
+    return tp, len(pred) - tp, len(gold) - tp
+
+
 def analyze(predictions_path: Path) -> dict:
     rows = [
         json.loads(line)
@@ -28,37 +65,65 @@ def analyze(predictions_path: Path) -> dict:
         if line.strip()
     ]
     gold_rows = [r for r in rows if r.get("gold_spans")]
-    exact = norm_match = contained = any_pred = 0
-    for r in gold_rows:
-        golds = {g.get("text", "") for g in r["gold_spans"]}
-        goldsn = {norm(g.get("text", "")) for g in r["gold_spans"]}
-        preds = [p.get("text", "") for p in r.get("pred_spans", [])]
-        if preds:
-            any_pred += 1
-        if any(p in golds for p in preds):
-            exact += 1
-        if any(norm(p) in goldsn for p in preds):
-            norm_match += 1
-        hit = False
-        for p in preds:
-            pn = norm(p)
-            for gn in goldsn:
-                if pn and gn and (pn in gn or gn in pn):
-                    hit = True
-        if hit:
-            contained += 1
+
+    # Row-level "did the model get it at all" rates (over rows with a gold span).
+    exact_row = norm_row = contained_row = any_pred = 0
+    # Span-level micro P/R/F1 (over ALL rows, so false positives on no-gold rows count).
+    raw = [0, 0, 0]
+    normd = [0, 0, 0]
+    cont = [0, 0, 0]
+    for r in rows:
+        gold_texts = [g.get("text", "") for g in r.get("gold_spans", [])]
+        pred_texts = [p.get("text", "") for p in r.get("pred_spans", [])]
+        gold_norm = [norm(t) for t in gold_texts]
+        pred_norm = [norm(t) for t in pred_texts]
+
+        for acc, gset, pset in (
+            (raw, gold_texts, pred_texts),
+            (normd, gold_norm, pred_norm),
+        ):
+            tp, fp, fn = _exact_counts(gset, pset)
+            acc[0] += tp
+            acc[1] += fp
+            acc[2] += fn
+        tp, fp, fn = _contained_counts(gold_norm, pred_norm)
+        cont[0] += tp
+        cont[1] += fp
+        cont[2] += fn
+
+        if r.get("gold_spans"):
+            golds = set(gold_texts)
+            goldsn = set(gold_norm)
+            if pred_texts:
+                any_pred += 1
+            if any(p in golds for p in pred_texts):
+                exact_row += 1
+            if any(pn in goldsn for pn in pred_norm):
+                norm_row += 1
+            if any(
+                pn and gn and (pn in gn or gn in pn)
+                for pn in pred_norm
+                for gn in goldsn
+            ):
+                contained_row += 1
+
     n = len(gold_rows) or 1
     return {
         "predictions_path": str(predictions_path),
         "rows_total": len(rows),
         "rows_with_gold": len(gold_rows),
         "rows_with_pred_text": any_pred,
-        "emitted_text_exact": exact,
-        "emitted_text_exact_rate": exact / n,
-        "emitted_text_norm": norm_match,
-        "emitted_text_norm_rate": norm_match / n,
-        "emitted_text_contained": contained,
-        "emitted_text_contained_rate": contained / n,
+        # Primary leaderboard metric for author: offset-independent text-equal F1.
+        "text_equal_f1": _prf(*raw),
+        "text_equal_norm_f1": _prf(*normd),
+        "text_contained_f1": _prf(*cont),
+        # Row-level "got it at least once" rates (over rows with a gold span).
+        "emitted_text_exact": exact_row,
+        "emitted_text_exact_rate": exact_row / n,
+        "emitted_text_norm": norm_row,
+        "emitted_text_norm_rate": norm_row / n,
+        "emitted_text_contained": contained_row,
+        "emitted_text_contained_rate": contained_row / n,
     }
 
 
